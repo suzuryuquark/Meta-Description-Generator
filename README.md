@@ -1,0 +1,2 @@
+# Meta-Description-Generator
+URLを指定するとmetaタグに指定するdescriptionをGemini APIが3パターン提案してくれます。指示を追加して再生成させることも可能です。
