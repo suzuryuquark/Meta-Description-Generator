@@ -107,8 +107,18 @@ def main(page: ft.Page):
 
         try:
             # Get original description from the target card
-            # Structure: Card -> Container -> Column -> ListTile -> subtitle(TextField)
-            original_desc = target_refine_card.content.content.controls[0].subtitle.value
+            # New Structure:
+            # 0: ListTile (Pattern Label)
+            # 1: Text("タイトルタグ")
+            # 2: TextField (Title Tag)
+            # 3: Row (Title Actions)
+            # 4: Text("メタディスクリプション")
+            # 5: TextField (Meta Description)
+            # 6: Row (Desc Actions)
+            # 7: Container (Refine Button)
+            
+            # Description is at index 5
+            original_desc = target_refine_card.content.content.controls[5].value
             
             genai.configure(api_key=api_key_input.value)
             model = genai.GenerativeModel('gemini-2.5-flash')
@@ -139,16 +149,14 @@ def main(page: ft.Page):
             response = model.generate_content(prompt)
             refined_text = response.text.strip()
             
-            # Update the card
-            target_refine_card.content.content.controls[0].subtitle.value = refined_text
-            # Update char count
-            # Structure: Card -> Container -> Column -> Row -> Text (index 0)
-            target_refine_card.content.content.controls[1].controls[0].value = f"{len(refined_text)}文字"
-            # Update copy data
-            target_refine_card.content.content.controls[1].controls[1].data = refined_text
+            # Update the card (Description Field at index 5)
+            target_refine_card.content.content.controls[5].value = refined_text
             
-            # Update copy data
-            target_refine_card.content.content.controls[1].controls[1].data = refined_text
+            # Update char count (Row at index 6 -> Text at index 0)
+            target_refine_card.content.content.controls[6].controls[0].value = f"{len(refined_text)}文字"
+            
+            # Update copy data (Row at index 6 -> CopyBtn at index 1)
+            target_refine_card.content.content.controls[6].controls[1].data = refined_text
             
             # Visual Feedback (Flash Green)
             original_color = target_refine_card.color
@@ -272,15 +280,15 @@ def main(page: ft.Page):
             
             要件:
             - 日本語で出力すること
-            - 文字数は100文字〜120文字程度
+            - タイトルタグは30文字前後、Meta Descriptionは100文字〜120文字程度
             - それぞれ異なる訴求ポイント（例：メリット強調、疑問形、要約型など）を持つこと
             - 出力は以下のJSON形式のみにしてください。余計なmarkdown装飾は不要です。
             
             JSON形式:
             [
-                {{"title": "パターン1の特徴", "description": "生成された説明文"}},
-                {{"title": "パターン2の特徴", "description": "生成された説明文"}},
-                {{"title": "パターン3の特徴", "description": "生成された説明文"}}
+                {{"title": "パターン1の特徴", "title_tag": "生成されたタイトルタグ", "description": "生成された説明文"}},
+                {{"title": "パターン2の特徴", "title_tag": "生成されたタイトルタグ", "description": "生成された説明文"}},
+                {{"title": "パターン3の特徴", "title_tag": "生成されたタイトルタグ", "description": "生成された説明文"}}
             ]
 
             Webサイトのコンテンツ:
@@ -337,20 +345,64 @@ def main(page: ft.Page):
                     e.control.update()
                     e.control.parent.update() # Update row to show new count
 
-                desc_field = ft.TextField(
-                    value=item['description'],
+                # --- Title Tag Controls ---
+                title_tag_val = item.get('title_tag', '')
+                title_field = ft.TextField(
+                    value=title_tag_val,
                     multiline=True,
                     read_only=True,
                     border=ft.InputBorder.NONE,
                     text_size=16,
                     color=ft.Colors.BLACK87
                 )
+                title_edit_btn = ft.IconButton(
+                    icon=ft.Icons.EDIT,
+                    tooltip="手動修正",
+                    data={'field': title_field},
+                    on_click=toggle_edit
+                )
+                title_actions = ft.Row(
+                    [
+                        ft.Text(f"{len(title_tag_val)}文字", size=12, color=ft.Colors.GREY),
+                        ft.IconButton(
+                            icon=ft.Icons.COPY,
+                            tooltip="コピー",
+                            data=title_tag_val,
+                            on_click=copy_to_clipboard
+                        ),
+                        title_edit_btn
+                    ],
+                    alignment=ft.MainAxisAlignment.END,
+                )
 
-                edit_btn = ft.IconButton(
+                # --- Description Controls ---
+                desc_val = item['description']
+                desc_field = ft.TextField(
+                    value=desc_val,
+                    multiline=True,
+                    read_only=True,
+                    border=ft.InputBorder.NONE,
+                    text_size=16,
+                    color=ft.Colors.BLACK87
+                )
+                desc_edit_btn = ft.IconButton(
                     icon=ft.Icons.EDIT,
                     tooltip="手動修正",
                     data={'field': desc_field},
                     on_click=toggle_edit
+                )
+                desc_actions = ft.Row(
+                    [
+                        ft.Text(f"{len(desc_val)}文字", size=12, color=ft.Colors.GREY),
+                        ft.IconButton(
+                            icon=ft.Icons.COPY,
+                            tooltip="コピー",
+                            data=desc_val,
+                            on_click=copy_to_clipboard
+                        ),
+                        desc_edit_btn
+                    ],
+                    alignment=ft.MainAxisAlignment.END,
                 )
 
                 card = ft.Card(
@@ -359,36 +411,28 @@ def main(page: ft.Page):
                             ft.ListTile(
                                 leading=ft.Icon(ft.Icons.LIGHTBULB_OUTLINE),
                                 title=ft.Text(item['title'], weight=ft.FontWeight.BOLD),
-                                subtitle=desc_field,
                             ),
-                            ft.Row(
-                                [
-                                    ft.Text(f"{len(item['description'])}文字", size=12, color=ft.Colors.GREY),
-                                    ft.IconButton(
-                                        icon=ft.Icons.COPY,
-                                        tooltip="コピー",
-                                        data=item['description'],
-                                        on_click=copy_to_clipboard
-                                    ),
-                                    edit_btn
-                                ],
-                                alignment=ft.MainAxisAlignment.END,
-                            ),
+                            ft.Text("タイトルタグ", size=12, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_GREY),
+                            title_field,
+                            title_actions,
+                            ft.Divider(height=10, color=ft.Colors.TRANSPARENT),
+                            ft.Text("メタディスクリプション", size=12, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_GREY),
+                            desc_field,
+                            desc_actions,
                             ft.Container(
                                 content=ft.OutlinedButton(
-                                    text="修正して再生成",
+                                    text="修正して再生成 (Descのみ)",
                                     icon=ft.Icons.EDIT,
                                     on_click=open_refine_dialog,
-                                    data=None # Placeholder, will be set below
+                                    data=None # Placeholder
                                 ),
                                 alignment=ft.alignment.center_right
                             )
                         ]),
-                        padding=10
+                        padding=15
                     )
                 )
-                # Set the card as data for the refine button (which is the last control in the column)
-                # Column -> Container (last) -> OutlinedButton
+                # Set the card as data for the refine button (last control)
                 card.content.content.controls[-1].content.data = card
                 results_column.controls.append(card)
             
