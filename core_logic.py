@@ -38,7 +38,7 @@ def fetch_website_content(url):
     except Exception as e:
         raise Exception(f"サイトの読み込みに失敗しました: {str(e)}")
 
-def generate_descriptions(api_key, website_text, global_instruction):
+def generate_descriptions(api_key, website_text, global_instruction, target_keywords):
     genai.configure(api_key=api_key)
     model = genai.GenerativeModel('gemini-2.5-flash')
     
@@ -49,6 +49,7 @@ def generate_descriptions(api_key, website_text, global_instruction):
     - 日本語で出力すること
     - タイトルタグは30文字前後、Meta Descriptionは100文字〜120文字程度
     - それぞれ異なる訴求ポイント（例：メリット強調、疑問形、要約型など）を持つこと
+    - 指定された必須キーワードを可能な限り自然に含めること
     - 出力は以下のJSON形式のみにしてください。余計なmarkdown装飾は不要です。
     
     JSON形式:
@@ -63,6 +64,9 @@ def generate_descriptions(api_key, website_text, global_instruction):
 
     サイト共通の指示:
     {global_instruction}
+
+    必須キーワード:
+    {target_keywords}
     """
 
     response = model.generate_content(prompt)
@@ -77,7 +81,7 @@ def generate_descriptions(api_key, website_text, global_instruction):
         
     return json.loads(text_response)
 
-def refine_description(api_key, website_text, original_desc, global_instruction, refine_instruction):
+def refine_description(api_key, website_text, original_desc, global_instruction, target_keywords, refine_instruction):
     genai.configure(api_key=api_key)
     model = genai.GenerativeModel('gemini-2.5-flash')
     
@@ -94,6 +98,9 @@ def refine_description(api_key, website_text, original_desc, global_instruction,
 
     サイト共通の指示:
     {global_instruction}
+
+    必須キーワード:
+    {target_keywords}
 
     ユーザーの修正指示:
     {refine_instruction}

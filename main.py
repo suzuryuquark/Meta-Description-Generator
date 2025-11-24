@@ -43,11 +43,20 @@ def main(page: ft.Page):
         width=800
     )
 
+    # Target Keywords
+    target_keywords_input = ft.TextField(
+        label="ターゲットキーワード (カンマ区切り)",
+        hint_text="例：SEO, AI, 自動化",
+        width=800
+    )
+
     # Load settings
     if page.client_storage.contains_key("gemini_api_key"):
         api_key_input.value = page.client_storage.get("gemini_api_key")
     if page.client_storage.contains_key("global_instruction"):
         global_instruction_input.value = page.client_storage.get("global_instruction")
+    if page.client_storage.contains_key("target_keywords"):
+        target_keywords_input.value = page.client_storage.get("target_keywords")
 
     # URL Inputs (Domain + Path)
     domain_input = ft.TextField(
@@ -125,6 +134,7 @@ def main(page: ft.Page):
                 current_website_text,
                 original_desc,
                 global_instruction_input.value,
+                target_keywords_input.value,
                 refine_instruction_input.value
             )
             
@@ -197,6 +207,7 @@ def main(page: ft.Page):
 
         # Save settings
         page.client_storage.set("global_instruction", global_inst)
+        page.client_storage.set("target_keywords", target_keywords_input.value)
         page.client_storage.set("last_domain", domain)
 
         if not api_key:
@@ -218,7 +229,12 @@ def main(page: ft.Page):
             
             # 2. Generate with Gemini
             show_status("AIが説明文を生成中...")
-            suggestions = core_logic.generate_descriptions(api_key, current_website_text, global_inst)
+            suggestions = core_logic.generate_descriptions(
+                api_key, 
+                current_website_text, 
+                global_inst, 
+                target_keywords_input.value
+            )
 
             # 3. Display Results
             for item in suggestions:
@@ -252,6 +268,7 @@ def main(page: ft.Page):
                 save_key_btn
             ], alignment=ft.MainAxisAlignment.START),
             global_instruction_input,
+            target_keywords_input,
             ft.Row([
                 domain_input,
                 ft.Text("/", size=20),
