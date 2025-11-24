@@ -1,2 +1,64 @@
-# Meta-Description-Generator
-URLを指定するとmetaタグに指定するdescriptionをGemini APIが3パターン提案してくれます。指示を追加して再生成させることも可能です。
+# AI Meta Description Generator
+
+WebサイトのURLを指定するだけで、SEOに最適化された **Meta Description** と **Title Tag** をAI（Google Gemini）が自動生成するWindowsデスクトップアプリケーションです。
+
+Google検索結果のプレビュー（SERP Preview）機能により、実際の検索結果でどのように表示されるかをリアルタイムで確認しながら、クリック率（CTR）の高いメタデータを効率的に作成できます。
+
+## ✨ 主な機能
+
+*   **AI自動生成**: Google Gemini Proモデルを使用し、Webサイトのコンテンツを解析して最適なタイトルと説明文を3パターン提案します。
+*   **タイトルタグ生成**: ディスクリプションだけでなく、SEOに重要なタイトルタグ（30文字前後）も同時に生成します。
+*   **SERPプレビュー**: Google検索結果風のプレビューをリアルタイムで表示。文字数オーバーや見え方を直感的に確認できます。
+*   **ターゲットキーワード指定**: SEOで狙いたいキーワードを指定することで、それらを自然に含んだ文章を生成します。
+*   **修正・再生成 (Refinement)**: 生成された結果に対して、「もっと短く」「問いかけ調で」などの指示を出して何度でも修正可能です。
+*   **手動編集**: 生成されたテキストは直接編集可能。編集内容はプレビューにも即座に反映されます。
+*   **設定の保存**: APIキー、共通の指示、ドメイン、ターゲットキーワードなどは自動的に保存され、次回起動時に呼び出されます。
+*   **クリップボードコピー**: ワンクリックで結果をコピーできます。
+
+## 🚀 インストールと実行方法
+
+### 実行ファイル（.exe）を使用する場合
+`dist` フォルダ内の `MetaDescriptionGenerator.exe` を実行するだけで、Python環境がなくても動作します。
+
+### ソースコードから実行する場合
+
+1.  **リポジトリのクローン**
+    ```bash
+    git clone https://github.com/yourusername/Meta-Description-Generator.git
+    cd Meta-Description-Generator
+    ```
+
+2.  **依存ライブラリのインストール**
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+3.  **アプリケーションの起動**
+    ```bash
+    python main.py
+    ```
+
+## ⚙️ 使い方
+
+1.  **APIキーの設定**: 初回起動時にGoogle Gemini APIキーを入力し、保存ボタンを押します。（APIキーはGoogle AI Studioで取得できます）
+2.  **URLの入力**: 解析したいWebサイトの「ドメイン」と「パス」を入力します。
+3.  **オプション設定**:
+    *   **サイト共通の指示**: ターゲット層やトーン＆マナーなど、常に適用したい指示を入力します。
+    *   **ターゲットキーワード**: 含めたいキーワードをカンマ区切りで入力します。
+4.  **生成**: 「生成する」ボタンをクリックします。
+5.  **確認・編集**: 3つの提案が表示されます。プレビューを確認しながら、必要に応じて手動修正や再生成を行います。
+
+## 🛠️ 技術スタック
+
+*   **言語**: Python 3.x
+*   **GUIフレームワーク**: [Flet](https://flet.dev/) (Flutter for Python)
+*   **AIモデル**: Google Gemini API (`gemini-2.5-flash`)
+*   **スクレイピング**: BeautifulSoup4, Requests
+*   **パッケージング**: PyInstaller
+
+## 📂 プロジェクト構成
+
+*   `main.py`: アプリケーションのエントリーポイント、イベントハンドリング
+*   `core_logic.py`: Webスクレイピング、Gemini API通信ロジック
+*   `ui_components.py`: UIコンポーネント（結果カード、SERPプレビュー）
+*   `requirements.txt`: 依存ライブラリ一覧
