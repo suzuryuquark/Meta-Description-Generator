@@ -11,6 +11,39 @@ def main(page: ft.Page):
     page.window.height = 1200
     page.window.center()
     page.scroll = ft.ScrollMode.AUTO
+    
+    # --- Menu Bar Logic ---
+    def toggle_theme_mode(e):
+        page.theme_mode = ft.ThemeMode.DARK if page.theme_mode == ft.ThemeMode.LIGHT else ft.ThemeMode.LIGHT
+        page.update()
+
+    def open_github(e):
+        page.launch_url("https://github.com/suzuryuquark/Meta-Description-Generator")
+
+    def show_about_dialog(e):
+        page.open(ft.AlertDialog(
+            title=ft.Text("バージョン情報"),
+            content=ft.Text("AI Meta Description Generator v1.0.0\n\n© 2025 suzuryuquark"),
+        ))
+
+    page.appbar = ft.AppBar(
+        leading=ft.Icon(ft.Icons.AUTO_AWESOME),
+        leading_width=40,
+        title=ft.Text("AI Meta Description Generator"),
+        center_title=False,
+        bgcolor=ft.Colors.BLUE_GREY_50,
+        actions=[
+            ft.PopupMenuButton(
+                items=[
+                    ft.PopupMenuItem(text="ダークモード切替", on_click=toggle_theme_mode),
+                    ft.PopupMenuItem(), # Divider
+                    ft.PopupMenuItem(text="GitHubリポジトリ", on_click=open_github),
+                    ft.PopupMenuItem(text="バージョン情報", on_click=show_about_dialog),
+                ]
+            ),
+        ],
+    )
+    
     page.update()
 
     # API Key handling
@@ -19,7 +52,9 @@ def main(page: ft.Page):
         password=True,
         can_reveal_password=True,
         width=400,
-        hint_text="APIキーを入力してください"
+        hint_text="APIキーを入力してください",
+        border=ft.InputBorder.OUTLINE,
+        filled=True
     )
 
     def save_api_key(e):
@@ -40,14 +75,18 @@ def main(page: ft.Page):
         multiline=True,
         min_lines=2,
         max_lines=3,
-        width=800
+        width=800,
+        border=ft.InputBorder.OUTLINE,
+        filled=True
     )
 
     # Target Keywords
     target_keywords_input = ft.TextField(
         label="ターゲットキーワード (カンマ区切り)",
         hint_text="例：SEO, AI, 自動化",
-        width=800
+        width=800,
+        border=ft.InputBorder.OUTLINE,
+        filled=True
     )
 
     # Load settings
@@ -63,12 +102,16 @@ def main(page: ft.Page):
         label="ドメイン (https://...)",
         width=400,
         hint_text="https://example.com",
+        border=ft.InputBorder.OUTLINE,
+        filled=True
     )
     path_input = ft.TextField(
         label="パス (/page/...)",
         width=700,
         hint_text="/about",
-        autofocus=True
+        autofocus=True,
+        border=ft.InputBorder.OUTLINE,
+        filled=True
     )
 
     if page.client_storage.contains_key("last_domain"):
@@ -96,7 +139,9 @@ def main(page: ft.Page):
         label="修正の指示",
         hint_text="例：もっと短くして、問いかけ調で、など",
         multiline=True,
-        autofocus=True
+        autofocus=True,
+        border=ft.InputBorder.OUTLINE,
+        filled=True
     )
 
     def close_refine_dialog(e):
@@ -260,7 +305,7 @@ def main(page: ft.Page):
     # Layout
     page.add(
         ft.Column([
-            ft.Text("AI Meta Description Generator", size=30, weight=ft.FontWeight.BOLD),
+            # ft.Text("AI Meta Description Generator", size=30, weight=ft.FontWeight.BOLD), # Removed as it's now in AppBar
             ft.Text("WebサイトのURLから最適なdescriptionを3パターン提案します。", size=16, color=ft.Colors.GREY_700),
             ft.Divider(),
             ft.Row([
