@@ -1,5 +1,6 @@
 import flet as ft
 import time
+import os
 import core_logic
 import ui_components
 
@@ -26,6 +27,21 @@ def main(page: ft.Page):
             content=ft.Text("AI Meta Description Generator v1.0.0\n\n© 2025 suzuryuquark"),
         ))
 
+    def show_changelog_dialog(e):
+        changelog_content = "更新履歴が見つかりませんでした。"
+        if os.path.exists("CHANGELOG.md"):
+            with open("CHANGELOG.md", "r", encoding="utf-8") as f:
+                changelog_content = f.read()
+        
+        page.open(ft.AlertDialog(
+            title=ft.Text("更新履歴"),
+            content=ft.Container(
+                content=ft.Markdown(changelog_content),
+                width=600,
+                height=400,
+            ),
+        ))
+
     page.appbar = ft.AppBar(
         leading=ft.Icon(ft.Icons.AUTO_AWESOME),
         leading_width=40,
@@ -38,6 +54,7 @@ def main(page: ft.Page):
                     ft.PopupMenuItem(text="ダークモード切替", on_click=toggle_theme_mode),
                     ft.PopupMenuItem(), # Divider
                     ft.PopupMenuItem(text="GitHubリポジトリ", on_click=open_github),
+                    ft.PopupMenuItem(text="更新履歴", on_click=show_changelog_dialog),
                     ft.PopupMenuItem(text="バージョン情報", on_click=show_about_dialog),
                 ]
             ),
