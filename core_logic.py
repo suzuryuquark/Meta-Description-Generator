@@ -109,6 +109,7 @@ def refine_description(api_key, website_text, original_desc, global_instruction,
     - 日本語で出力すること
     - 文字数は100文字〜120文字程度
     - 出力は修正後のdescriptionのテキストのみ（JSON不要）
+    - **必ず元の文章を変更すること**
     """
 
     response = model.generate_content(prompt)

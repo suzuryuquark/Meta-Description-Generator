@@ -1,6 +1,8 @@
 import flet as ft
 import time
 import os
+import csv
+import datetime
 import core_logic
 import ui_components
 
@@ -22,9 +24,10 @@ def main(page: ft.Page):
         page.launch_url("https://github.com/suzuryuquark/Meta-Description-Generator")
 
     def show_about_dialog(e):
+        current_year = datetime.datetime.now().year
         page.open(ft.AlertDialog(
             title=ft.Text("バージョン情報"),
-            content=ft.Text("AI Meta Description Generator v1.0.0\n\n© 2025 suzuryuquark"),
+            content=ft.Text(f"AI Meta Description Generator v1.1.0\n\n© {current_year} suzuryuquark"),
         ))
 
     def show_changelog_dialog(e):
@@ -42,6 +45,44 @@ def main(page: ft.Page):
             ),
         ))
 
+    # --- CSV Export Logic ---
+    def save_csv(e: ft.FilePickerResultEvent):
+        if e.path:
+            try:
+                with open(e.path, mode='w', newline='', encoding='utf-8-sig') as f:
+                    writer = csv.writer(f)
+                    writer.writerow(['ドメイン', 'パス', 'パターン', 'タイトルタグ', '文字数', 'メタディスクリプション', '文字数'])
+                    
+                    # Construct URL from inputs
+                    domain = domain_input.value.rstrip('/')
+                    path = path_input.value.lstrip('/')
+
+                    for card in results_column.controls:
+                        # Extract data from UI structure
+                        # Card -> Container -> Column -> controls
+                        # [0]: ListTile (Pattern)
+                        # [5]: TextField (Title)
+                        # [9]: TextField (Description)
+                        content_col = card.content.content
+                        pattern = content_col.controls[0].title.value
+                        title = content_col.controls[5].value
+                        desc = content_col.controls[9].value
+                        writer.writerow([domain, path, pattern, title, len(title), desc, len(desc)])
+                
+                show_status(f"CSVを保存しました: {e.path}")
+            except Exception as ex:
+                show_error(f"保存に失敗しました: {str(ex)}")
+
+    csv_picker = ft.FilePicker(on_result=save_csv)
+    page.overlay.append(csv_picker)
+
+    def export_csv_click(e):
+        if not results_column.controls:
+            show_error("保存するデータがありません")
+            return
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        csv_picker.save_file(file_name=f"meta_descriptions_{timestamp}.csv", allowed_extensions=["csv"])
+
     page.appbar = ft.AppBar(
         leading=ft.Icon(ft.Icons.AUTO_AWESOME),
         leading_width=40,
@@ -51,6 +92,8 @@ def main(page: ft.Page):
         actions=[
             ft.PopupMenuButton(
                 items=[
+                    ft.PopupMenuItem(text="CSVエクスポート", icon=ft.Icons.DOWNLOAD, on_click=export_csv_click),
+                    ft.PopupMenuItem(), # Divider
                     ft.PopupMenuItem(text="ダークモード切替", on_click=toggle_theme_mode),
                     ft.PopupMenuItem(), # Divider
                     ft.PopupMenuItem(text="GitHubリポジトリ", on_click=open_github),
@@ -199,18 +242,28 @@ def main(page: ft.Page):
                 target_keywords_input.value,
                 refine_instruction_input.value
             )
-            
+            print(f"Original: {original_desc}")
+            print(f"Refined: {refined_text}")
+
             # Update the card (Description Field at index 9)
             target_refine_card.content.content.controls[9].value = refined_text
             
             # Update char count (Row at index 10 -> Text at index 0)
-            target_refine_card.content.content.controls[10].controls[0].value = f"{len(refined_text)}文字"
+            count_text = target_refine_card.content.content.controls[10].controls[0]
+            count_text.value = f"{len(refined_text)}文字"
+            
+            # Validation Logic for Refinement
+            if len(refined_text) > 120:
+                count_text.color = ft.Colors.RED
+                count_text.weight = ft.FontWeight.BOLD
+            else:
+                count_text.color = ft.Colors.GREY
+                count_text.weight = ft.FontWeight.NORMAL
             
             # Update copy data (Row at index 10 -> CopyBtn at index 1)
             target_refine_card.content.content.controls[10].controls[1].data = refined_text
             
             # Update SERP Preview (Container at index 2 -> Column -> Text at index 2)
-            # SERP Preview Structure: Container -> Column -> [Row(Url), Title, Desc]
             target_refine_card.content.content.controls[2].content.controls[2].value = refined_text
             
             # Visual Feedback (Flash Green)

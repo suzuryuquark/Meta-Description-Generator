@@ -70,6 +70,18 @@ def create_result_card(item, domain, path, on_copy, open_refine_dialog):
         preview_desc.value = e.control.value
         preview_desc.update()
 
+    # --- Validation Logic ---
+    def validate_count(text, limit, count_control):
+        count = len(text)
+        count_control.value = f"{count}文字"
+        if count > limit:
+            count_control.color = ft.Colors.RED
+            count_control.weight = ft.FontWeight.BOLD
+        else:
+            count_control.color = ft.Colors.GREY
+            count_control.weight = ft.FontWeight.NORMAL
+        count_control.update()
+
     # Manual Edit Logic
     def toggle_edit(e):
         text_field = e.control.data['field']
@@ -84,7 +96,12 @@ def create_result_card(item, domain, path, on_copy, open_refine_dialog):
             count_text = e.control.parent.controls[0]
             copy_btn = e.control.parent.controls[1]
             
-            count_text.value = f"{len(text_field.value)}文字"
+            # Update count with validation
+            limit = 32 if "title" in str(text_field.data) else 120 # Hacky way to identify field, or pass limit in data
+            # Better: pass limit in toggle_edit data
+            limit = e.control.data.get('limit', 120)
+            validate_count(text_field.value, limit, count_text)
+            
             copy_btn.data = text_field.value
             
         else: # Start editing
@@ -100,6 +117,18 @@ def create_result_card(item, domain, path, on_copy, open_refine_dialog):
 
     # --- Title Tag Controls ---
     title_tag_val = item.get('title_tag', '')
+    
+    # Pre-calculate initial style
+    title_len = len(title_tag_val)
+    title_color = ft.Colors.RED if title_len > 32 else ft.Colors.GREY
+    title_weight = ft.FontWeight.BOLD if title_len > 32 else ft.FontWeight.NORMAL
+    
+    title_count_text = ft.Text(f"{title_len}文字", size=12, color=title_color, weight=title_weight)
+
+    def on_title_change(e):
+        update_preview_title(e)
+        validate_count(e.control.value, 32, title_count_text)
+
     title_field = ft.TextField(
         value=title_tag_val,
         multiline=True,
@@ -107,17 +136,17 @@ def create_result_card(item, domain, path, on_copy, open_refine_dialog):
         border=ft.InputBorder.NONE,
         text_size=16,
         color=ft.Colors.BLACK87,
-        on_change=update_preview_title
+        on_change=on_title_change
     )
     title_edit_btn = ft.IconButton(
         icon=ft.Icons.EDIT,
         tooltip="手動修正",
-        data={'field': title_field},
+        data={'field': title_field, 'limit': 32},
         on_click=toggle_edit
     )
     title_actions = ft.Row(
         [
-            ft.Text(f"{len(title_tag_val)}文字", size=12, color=ft.Colors.GREY),
+            title_count_text,
             ft.IconButton(
                 icon=ft.Icons.COPY,
                 tooltip="コピー",
@@ -131,6 +160,18 @@ def create_result_card(item, domain, path, on_copy, open_refine_dialog):
 
     # --- Description Controls ---
     desc_val = item['description']
+    
+    # Pre-calculate initial style
+    desc_len = len(desc_val)
+    desc_color = ft.Colors.RED if desc_len > 120 else ft.Colors.GREY
+    desc_weight = ft.FontWeight.BOLD if desc_len > 120 else ft.FontWeight.NORMAL
+    
+    desc_count_text = ft.Text(f"{desc_len}文字", size=12, color=desc_color, weight=desc_weight)
+
+    def on_desc_change(e):
+        update_preview_desc(e)
+        validate_count(e.control.value, 120, desc_count_text)
+
     desc_field = ft.TextField(
         value=desc_val,
         multiline=True,
@@ -138,17 +179,17 @@ def create_result_card(item, domain, path, on_copy, open_refine_dialog):
         border=ft.InputBorder.NONE,
         text_size=16,
         color=ft.Colors.BLACK87,
-        on_change=update_preview_desc
+        on_change=on_desc_change
     )
     desc_edit_btn = ft.IconButton(
         icon=ft.Icons.EDIT,
         tooltip="手動修正",
-        data={'field': desc_field},
+        data={'field': desc_field, 'limit': 120},
         on_click=toggle_edit
     )
     desc_actions = ft.Row(
         [
-            ft.Text(f"{len(desc_val)}文字", size=12, color=ft.Colors.GREY),
+            desc_count_text,
             ft.IconButton(
                 icon=ft.Icons.COPY,
                 tooltip="コピー",
