@@ -23,7 +23,7 @@ Google検索結果のプレビュー（SERP Preview）機能により、実際�
 ## 🚀 インストールと実行方法
 
 ### 実行ファイル（.exe）を使用する場合
-`dist` フォルダ内の `MetaDescriptionGenerator.exe` を実行するだけで、Python環境がなくても動作します。
+GitHub の [Releases](https://github.com/suzuryuquark/Meta-Description-Generator/releases) ページから最新の `MetaDescriptionGenerator.exe` をダウンロードして実行するだけで、Python環境がなくても動作します。
 
 ### ソースコードから実行する場合
 
