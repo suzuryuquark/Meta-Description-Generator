@@ -56,6 +56,39 @@ def create_serp_preview(domain, path, title, description):
     
     return container, preview_title, preview_desc
 
+def create_history_card(entry, on_copy):
+    # entry keys: url, timestamp, pattern, title_tag, description
+    return ft.Card(
+        content=ft.Container(
+            content=ft.Column([
+                ft.ListTile(
+                    leading=ft.Icon(ft.Icons.HISTORY, size=20),
+                    title=ft.Text(f"{entry.get('pattern', 'パターン')} - {entry.get('timestamp', '')}", size=14, weight=ft.FontWeight.BOLD),
+                    subtitle=ft.Text(entry.get('url', ''), size=12),
+                ),
+                ft.Text("タイトルタグ:", size=11, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_GREY),
+                ft.Text(entry.get('title_tag', ''), size=14),
+                ft.Text("メタディスクリプション:", size=11, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_GREY),
+                ft.Text(entry.get('description', ''), size=14),
+                ft.Row([
+                    ft.TextButton(
+                        "タイトルをコピー", 
+                        icon=ft.Icons.COPY, 
+                        on_click=on_copy, 
+                        data=entry.get('title_tag', '')
+                    ),
+                    ft.TextButton(
+                        "説明文をコピー", 
+                        icon=ft.Icons.COPY, 
+                        on_click=on_copy, 
+                        data=entry.get('description', '')
+                    ),
+                ], alignment=ft.MainAxisAlignment.END)
+            ], spacing=5),
+            padding=10
+        )
+    )
+
 def create_result_card(item, domain, path, on_copy, open_refine_dialog):
     # SERP Preview
     serp_preview, preview_title, preview_desc = create_serp_preview(
@@ -97,8 +130,6 @@ def create_result_card(item, domain, path, on_copy, open_refine_dialog):
             copy_btn = e.control.parent.controls[1]
             
             # Update count with validation
-            limit = 32 if "title" in str(text_field.data) else 120 # Hacky way to identify field, or pass limit in data
-            # Better: pass limit in toggle_edit data
             limit = e.control.data.get('limit', 120)
             validate_count(text_field.value, limit, count_text)
             

@@ -3,6 +3,9 @@ from bs4 import BeautifulSoup
 import google.generativeai as genai
 import json
 
+# AI Model Configuration
+GEMINI_MODEL_NAME = 'gemini-3-flash-preview'
+
 def fetch_website_content(url):
     try:
         headers = {
@@ -38,9 +41,9 @@ def fetch_website_content(url):
     except Exception as e:
         raise Exception(f"サイトの読み込みに失敗しました: {str(e)}")
 
-def generate_descriptions(api_key, website_text, global_instruction, target_keywords):
+def generate_descriptions(api_key, website_text, global_instruction, target_keywords, tone="SEO重視"):
     genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('gemini-2.5-flash')
+    model = genai.GenerativeModel(GEMINI_MODEL_NAME)
     
     prompt = f"""
     あなたはSEOの専門家です。以下のWebサイトのテキストコンテンツを分析し、検索エンジンの結果ページ（SERP）でクリック率を高めるための魅力的なmeta descriptionを3つ提案してください。
@@ -50,6 +53,7 @@ def generate_descriptions(api_key, website_text, global_instruction, target_keyw
     - タイトルタグは30文字前後、Meta Descriptionは100文字〜120文字程度
     - それぞれ異なる訴求ポイント（例：メリット強調、疑問形、要約型など）を持つこと
     - 指定された必須キーワードを可能な限り自然に含めること
+    - **トーン＆スタイル: {tone}**
     - 出力は以下のJSON形式のみにしてください。余計なmarkdown装飾は不要です。
     
     JSON形式:
@@ -83,7 +87,7 @@ def generate_descriptions(api_key, website_text, global_instruction, target_keyw
 
 def refine_description(api_key, website_text, original_desc, global_instruction, target_keywords, refine_instruction):
     genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('gemini-2.5-flash')
+    model = genai.GenerativeModel(GEMINI_MODEL_NAME)
     
     prompt = f"""
     あなたはSEOの専門家です。

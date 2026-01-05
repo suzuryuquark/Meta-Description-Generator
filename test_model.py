@@ -7,9 +7,11 @@ import os
 # Actually, without an API key, I can't really test the API.
 # But I can check if the string is rejected locally? No, it's usually server-side.
 
+from core_logic import GEMINI_MODEL_NAME
+
 print("Testing model name...")
 try:
-    model = genai.GenerativeModel('gemini-2.5-flash')
-    print("Model instantiation successful (local object created).")
+    model = genai.GenerativeModel(GEMINI_MODEL_NAME)
+    print(f"Model instantiation successful: {GEMINI_MODEL_NAME}")
 except Exception as e:
     print(f"Model instantiation failed: {e}")

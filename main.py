@@ -13,7 +13,7 @@ def main(page: ft.Page):
     page.window.width = 1200
     page.window.height = 1200
     page.window.center()
-    page.scroll = ft.ScrollMode.AUTO
+    page.scroll = None # Disable page-level scroll to fix footer
     
     # --- Menu Bar Logic ---
     def toggle_theme_mode(e):
@@ -27,7 +27,7 @@ def main(page: ft.Page):
         current_year = datetime.datetime.now().year
         page.open(ft.AlertDialog(
             title=ft.Text("バージョン情報"),
-            content=ft.Text(f"AI Meta Description Generator v1.1.0\n\n© {current_year} suzuryuquark"),
+            content=ft.Text(f"AI Meta Description Generator v1.2.0\n\n© {current_year} suzuryuquark"),
         ))
 
     def show_changelog_dialog(e):
@@ -49,27 +49,29 @@ def main(page: ft.Page):
     def save_csv(e: ft.FilePickerResultEvent):
         if e.path:
             try:
+                history = page.client_storage.get("generation_history") or []
+                if not history:
+                    show_error("保存する履歴がありません")
+                    return
+
                 with open(e.path, mode='w', newline='', encoding='utf-8-sig') as f:
                     writer = csv.writer(f)
-                    writer.writerow(['ドメイン', 'パス', 'パターン', 'タイトルタグ', '文字数', 'メタディスクリプション', '文字数'])
+                    writer.writerow(['日時', 'URL', 'パターン', 'タイトルタグ', '文字数', 'メタディスクリプション', '文字数'])
                     
-                    # Construct URL from inputs
-                    domain = domain_input.value.rstrip('/')
-                    path = path_input.value.lstrip('/')
-
-                    for card in results_column.controls:
-                        # Extract data from UI structure
-                        # Card -> Container -> Column -> controls
-                        # [0]: ListTile (Pattern)
-                        # [5]: TextField (Title)
-                        # [9]: TextField (Description)
-                        content_col = card.content.content
-                        pattern = content_col.controls[0].title.value
-                        title = content_col.controls[5].value
-                        desc = content_col.controls[9].value
-                        writer.writerow([domain, path, pattern, title, len(title), desc, len(desc)])
+                    for entry in history:
+                        title = entry.get('title_tag', '')
+                        desc = entry.get('description', '')
+                        writer.writerow([
+                            entry.get('timestamp', ''),
+                            entry.get('url', ''),
+                            entry.get('pattern', ''),
+                            title,
+                            len(title),
+                            desc,
+                            len(desc)
+                        ])
                 
-                show_status(f"CSVを保存しました: {e.path}")
+                show_status(f"全履歴（{len(history)}件）をCSVに保存しました: {e.path}")
             except Exception as ex:
                 show_error(f"保存に失敗しました: {str(ex)}")
 
@@ -77,8 +79,9 @@ def main(page: ft.Page):
     page.overlay.append(csv_picker)
 
     def export_csv_click(e):
-        if not results_column.controls:
-            show_error("保存するデータがありません")
+        history = page.client_storage.get("generation_history") or []
+        if not history:
+            show_error("保存する履歴がありません")
             return
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         csv_picker.save_file(file_name=f"meta_descriptions_{timestamp}.csv", allowed_extensions=["csv"])
@@ -177,6 +180,21 @@ def main(page: ft.Page):
     if page.client_storage.contains_key("last_domain"):
         domain_input.value = page.client_storage.get("last_domain")
 
+    # Tone Selection
+    tone_dropdown = ft.Dropdown(
+        label="トーン＆スタイル",
+        hint_text="生成する文章の雰囲気を選択してください",
+        options=[
+            ft.dropdown.Option("SEO重視 (デフォルト)"),
+            ft.dropdown.Option("プロフェッショナル (信頼感重視)"),
+            ft.dropdown.Option("親しみやすい (カジュアル)"),
+            ft.dropdown.Option("キャッチー (クリック誘発)"),
+            ft.dropdown.Option("メリット強調 (ベネフィット前面)"),
+        ],
+        value="SEO重視 (デフォルト)",
+        width=800,
+    )
+
     generate_btn = ft.ElevatedButton(
         text="生成する",
         icon=ft.Icons.AUTO_AWESOME,
@@ -189,6 +207,7 @@ def main(page: ft.Page):
 
     status_text = ft.Text("")
     results_column = ft.Column(spacing=10, scroll=ft.ScrollMode.AUTO)
+    history_column = ft.Column(spacing=10, scroll=ft.ScrollMode.AUTO)
     
     # State variables
     current_website_text = ""
@@ -309,7 +328,34 @@ def main(page: ft.Page):
 
     def copy_to_clipboard(e):
         page.set_clipboard(e.control.data)
-        page.show_snack_bar(ft.SnackBar(content=ft.Text("コピーしました！")))
+        page.open(ft.SnackBar(content=ft.Text("コピーしました！")))
+
+    def load_history():
+        history = page.client_storage.get("generation_history") or []
+        history_column.controls.clear()
+        for entry in reversed(history):
+            # entries are expected to have: url, timestamp, pattern, title_tag, description
+            card = ui_components.create_history_card(
+                entry, 
+                copy_to_clipboard
+            )
+            history_column.controls.append(card)
+        page.update()
+
+    def save_to_history(url, suggestions):
+        history = page.client_storage.get("generation_history") or []
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        for item in suggestions:
+            history.append({
+                "url": url,
+                "timestamp": timestamp,
+                "pattern": item['title'],
+                "title_tag": item.get('title_tag', ''),
+                "description": item['description']
+            })
+        # Limit history to 50 items
+        history = history[-50:]
+        page.client_storage.set("generation_history", history)
 
     def generate_descriptions_click(e):
         api_key = api_key_input.value
@@ -348,7 +394,8 @@ def main(page: ft.Page):
                 api_key, 
                 current_website_text, 
                 global_inst, 
-                target_keywords_input.value
+                target_keywords_input.value,
+                tone=tone_dropdown.value
             )
 
             # 3. Display Results
@@ -362,6 +409,10 @@ def main(page: ft.Page):
                 )
                 results_column.controls.append(card)
             
+            # 4. Save to History
+            save_to_history(url, suggestions)
+            load_history()
+
             show_status("生成完了！")
 
         except Exception as ex:
@@ -372,29 +423,80 @@ def main(page: ft.Page):
 
     generate_btn.on_click = generate_descriptions_click
 
-    # Layout
+    # Tabs
+    tabs = ft.Tabs(
+        selected_index=0,
+        animation_duration=300,
+        tabs=[
+            ft.Tab(
+                text="生成",
+                icon=ft.Icons.CREATE,
+                content=ft.Container(
+                    content=ft.Column([
+                        ft.Text("WebサイトのURLから最適なdescriptionを3パターン提案します。", size=16, color=ft.Colors.GREY_700),
+                        ft.Divider(),
+                        ft.Row([
+                            api_key_input,
+                            save_key_btn
+                        ], alignment=ft.MainAxisAlignment.START),
+                        global_instruction_input,
+                        target_keywords_input,
+                        ft.Row([
+                            domain_input,
+                            ft.Text("/", size=20),
+                            path_input
+                        ], alignment=ft.MainAxisAlignment.START, vertical_alignment=ft.CrossAxisAlignment.CENTER),
+                        tone_dropdown,
+                        generate_btn,
+                        ft.Divider(),
+                        results_column
+                    ], spacing=20, scroll=ft.ScrollMode.AUTO),
+                    padding=10
+                )
+            ),
+            ft.Tab(
+                text="履歴",
+                icon=ft.Icons.HISTORY,
+                content=ft.Container(
+                    content=ft.Column([
+                        ft.Row([
+                            ft.Text("最近の生成履歴 (最大50件)", size=18, weight=ft.FontWeight.BOLD),
+                            ft.Row([
+                                ft.ElevatedButton(
+                                    "CSVエクスポート",
+                                    icon=ft.Icons.DOWNLOAD,
+                                    on_click=export_csv_click
+                                ),
+                                ft.IconButton(
+                                    icon=ft.Icons.DELETE_SWEEP, 
+                                    tooltip="履歴をクリア",
+                                    on_click=lambda _: (page.client_storage.set("generation_history", []), load_history())
+                                ),
+                            ], spacing=10),
+                        ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                        history_column
+                    ], spacing=10, scroll=ft.ScrollMode.AUTO),
+                    padding=10
+                )
+            ),
+        ],
+        expand=1
+    )
+
     page.add(
         ft.Column([
-            # ft.Text("AI Meta Description Generator", size=30, weight=ft.FontWeight.BOLD), # Removed as it's now in AppBar
-            ft.Text("WebサイトのURLから最適なdescriptionを3パターン提案します。", size=16, color=ft.Colors.GREY_700),
-            ft.Divider(),
-            ft.Row([
-                api_key_input,
-                save_key_btn
-            ], alignment=ft.MainAxisAlignment.START),
-            global_instruction_input,
-            target_keywords_input,
-            ft.Row([
-                domain_input,
-                ft.Text("/", size=20),
-                path_input
-            ], alignment=ft.MainAxisAlignment.START, vertical_alignment=ft.CrossAxisAlignment.CENTER),
-            generate_btn,
-            status_text,
-            ft.Divider(),
-            results_column
-        ], spacing=20)
+            tabs,
+            ft.Container(
+                content=status_text,
+                padding=10,
+                bgcolor=ft.Colors.BLUE_GREY_50,
+                border=ft.border.only(top=ft.BorderSide(1, ft.Colors.BLUE_GREY_100)),
+                width=float("inf"), # Fill width
+                height=50,          # Fixed height for status bar
+            )
+        ], expand=True)
     )
+    load_history()
 
 if __name__ == "__main__":
     ft.app(target=main)
