@@ -75,8 +75,18 @@ def generate_descriptions(api_key, website_text, global_instruction, target_keyw
 
     response = model.generate_content(prompt)
     
+    # Handle blocked or empty response
+    try:
+        text_response = response.text.strip()
+    except ValueError:
+        # Check if it was blocked by safety filters
+        if hasattr(response, 'candidates') and response.candidates:
+            reason = response.candidates[0].finish_reason
+            if reason != 1: # 1 is SUCCESS (or FINISHED_REASON_UNSPECIFIED)
+                 raise Exception(f"AI生成が制限されました (理由コード: {reason})。不適切なコンテンツまたはAIのポリシーにより生成がブロックされた可能性があります。")
+        raise Exception("AIからの応答が空か、正しく取得できませんでした。")
+
     # Parse JSON response
-    text_response = response.text.strip()
     # Remove markdown code blocks if present
     if text_response.startswith("```json"):
         text_response = text_response[7:-3]
@@ -117,4 +127,8 @@ def refine_description(api_key, website_text, original_desc, global_instruction,
     """
 
     response = model.generate_content(prompt)
-    return response.text.strip()
+    
+    try:
+        return response.text.strip()
+    except ValueError:
+        raise Exception("不適切な指示、または制限によりAIによる修正がブロックされました。")
