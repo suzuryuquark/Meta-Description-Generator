@@ -1,4 +1,4 @@
-## v1.4.0 (Unreleased)
+## v1.4.0 (2026-07-31)
 - **Gemini API基盤の刷新**:
     - `google-generativeai` から `google-genai` へ移行。
     - 利用可能な生成モデルの一覧取得、モデル選択、モデルID直接入力を追加。
