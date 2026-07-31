@@ -1,50 +1,58 @@
-import requests
-from bs4 import BeautifulSoup
-import google.generativeai as genai
 import json
 
+import google.generativeai as genai
+import requests
+from bs4 import BeautifulSoup
+
 # AI Model Configuration
-GEMINI_MODEL_NAME = 'gemini-3-flash-preview'
+GEMINI_MODEL_NAME = "gemini-3-flash-preview"
+
 
 def fetch_website_content(url):
     try:
         headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
         }
         response = requests.get(url, headers=headers, timeout=10)
         response.raise_for_status()
         response.encoding = response.apparent_encoding
-        
-        soup = BeautifulSoup(response.text, 'html.parser')
-        
+
+        soup = BeautifulSoup(response.text, "html.parser")
+
         # Extract relevant text
         title = soup.title.string if soup.title else ""
         meta_desc = ""
-        meta = soup.find('meta', attrs={'name': 'description'})
+        meta = soup.find("meta", attrs={"name": "description"})
         if meta:
-            meta_desc = meta.get('content', '')
-        
+            meta_content = meta.get("content", "")
+            meta_desc = meta_content if isinstance(meta_content, str) else ""
+
         # Get main content text (h1, h2, p)
         content_parts = []
-        if title: content_parts.append(f"Title: {title}")
-        if meta_desc: content_parts.append(f"Current Description: {meta_desc}")
-        
-        for tag in soup.find_all(['h1', 'h2', 'p']):
+        if title:
+            content_parts.append(f"Title: {title}")
+        if meta_desc:
+            content_parts.append(f"Current Description: {meta_desc}")
+
+        for tag in soup.find_all(["h1", "h2", "p"]):
             text = tag.get_text(strip=True)
-            if len(text) > 20: # Filter out short snippets
+            if len(text) > 20:  # Filter out short snippets
                 content_parts.append(text)
-        
+
         # Limit content length to avoid token limits (approx 10k chars)
         full_text = "\n".join(content_parts)
         return full_text[:10000]
-        
-    except Exception as e:
-        raise Exception(f"サイトの読み込みに失敗しました: {str(e)}")
 
-def generate_descriptions(api_key, website_text, global_instruction, target_keywords, tone="SEO重視"):
+    except Exception as exc:
+        raise Exception(f"サイトの読み込みに失敗しました: {exc}") from exc
+
+
+def generate_descriptions(
+    api_key, website_text, global_instruction, target_keywords, tone="SEO重視"
+):
     genai.configure(api_key=api_key)
     model = genai.GenerativeModel(GEMINI_MODEL_NAME)
-    
+
     prompt = f"""
     あなたはSEOの専門家です。以下のWebサイトのテキストコンテンツを分析し、検索エンジンの結果ページ（SERP）でクリック率を高めるための魅力的なmeta descriptionを3つ提案してください。
     
@@ -74,17 +82,19 @@ def generate_descriptions(api_key, website_text, global_instruction, target_keyw
     """
 
     response = model.generate_content(prompt)
-    
+
     # Handle blocked or empty response
     try:
         text_response = response.text.strip()
-    except ValueError:
+    except ValueError as exc:
         # Check if it was blocked by safety filters
-        if hasattr(response, 'candidates') and response.candidates:
+        if hasattr(response, "candidates") and response.candidates:
             reason = response.candidates[0].finish_reason
-            if reason != 1: # 1 is SUCCESS (or FINISHED_REASON_UNSPECIFIED)
-                 raise Exception(f"AI生成が制限されました (理由コード: {reason})。不適切なコンテンツまたはAIのポリシーにより生成がブロックされた可能性があります。")
-        raise Exception("AIからの応答が空か、正しく取得できませんでした。")
+            if reason != 1:  # 1 is SUCCESS (or FINISHED_REASON_UNSPECIFIED)
+                raise Exception(
+                    f"AI生成が制限されました (理由コード: {reason})。不適切なコンテンツまたはAIのポリシーにより生成がブロックされた可能性があります。"
+                ) from exc
+        raise Exception("AIからの応答が空か、正しく取得できませんでした。") from exc
 
     # Parse JSON response
     # Remove markdown code blocks if present
@@ -92,13 +102,16 @@ def generate_descriptions(api_key, website_text, global_instruction, target_keyw
         text_response = text_response[7:-3]
     elif text_response.startswith("```"):
         text_response = text_response[3:-3]
-        
+
     return json.loads(text_response)
 
-def refine_description(api_key, website_text, original_desc, global_instruction, target_keywords, refine_instruction):
+
+def refine_description(
+    api_key, website_text, original_desc, global_instruction, target_keywords, refine_instruction
+):
     genai.configure(api_key=api_key)
     model = genai.GenerativeModel(GEMINI_MODEL_NAME)
-    
+
     prompt = f"""
     あなたはSEOの専門家です。
     以下のWebサイトのコンテンツと、現在提案されているmeta descriptionを元に、
@@ -127,8 +140,8 @@ def refine_description(api_key, website_text, original_desc, global_instruction,
     """
 
     response = model.generate_content(prompt)
-    
+
     try:
         return response.text.strip()
-    except ValueError:
-        raise Exception("不適切な指示、または制限によりAIによる修正がブロックされました。")
+    except ValueError as exc:
+        raise Exception("不適切な指示、または制限によりAIによる修正がブロックされました。") from exc

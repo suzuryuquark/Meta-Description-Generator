@@ -1,0 +1,83 @@
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+extend-exclude = '''
+/(
+    build
+  | dist
+  | \.git
+  | \.venv
+  | venv
+  | __pycache__
+)/
+'''
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+exclude = [
+    ".git",
+    ".venv",
+    "venv",
+    "__pycache__",
+    "build",
+    "dist",
+]
+
+[tool.ruff.lint]
+select = [
+    "ASYNC",
+    "B",
+    "E4",
+    "E7",
+    "E9",
+    "F",
+    "I",
+    "UP",
+]
+ignore = [
+    "E501",
+]
+
+[tool.ruff.lint.isort]
+known-first-party = [
+    "core_logic",
+    "services",
+    "ui",
+    "ui_components",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+addopts = [
+    "-ra",
+    "--strict-config",
+    "--strict-markers",
+]
+markers = [
+    "gui: Fletウィンドウを起動するスモークテスト",
+    "integration: 複数コンポーネントを接続する結合テスト",
+    "live_api: 明示実行専用の外部APIテスト",
+]
+
+[tool.mypy]
+python_version = "3.11"
+files = ["."]
+exclude = [
+    "^build/",
+    "^dist/",
+    "^\\.venv/",
+    "^venv/",
+]
+check_untyped_defs = true
+disallow_untyped_defs = false
+explicit_package_bases = true
+ignore_missing_imports = true
+no_implicit_optional = true
+show_error_codes = true
+warn_redundant_casts = true
+warn_return_any = true
+warn_unreachable = true
+warn_unused_configs = true

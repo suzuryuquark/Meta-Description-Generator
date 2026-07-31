@@ -1,12 +1,13 @@
-import asyncio
 import flet as ft
-from services.storage_service import StorageService
-from services.export_service import ExportService
+
 from services.error_service import ErrorService
+from services.export_service import ExportService
+from services.storage_service import StorageService
+from ui.bulk_view import BulkView
 from ui.dialogs import DialogManager
 from ui.generate_view import GenerateView
-from ui.bulk_view import BulkView
 from ui.history_view import HistoryView
+
 
 async def main(page: ft.Page):
     page.title = "AI Meta Description Generator"
@@ -19,6 +20,7 @@ async def main(page: ft.Page):
 
     async def handle_disconnect(e):
         import os
+
         os._exit(0)
 
     page.on_disconnect = handle_disconnect
@@ -51,23 +53,40 @@ async def main(page: ft.Page):
         status_text.update()
 
     # Views
-    history_view = HistoryView(page, storage, export_service, error_service, show_status, show_error)
-    
-    generate_view = GenerateView(
-        page, storage, error_service, show_status, show_error, 
-        load_history_cmd=history_view.load_history
+    history_view = HistoryView(
+        page, storage, export_service, error_service, show_status, show_error
     )
-    
+
+    generate_view = GenerateView(
+        page,
+        storage,
+        error_service,
+        show_status,
+        show_error,
+        load_history_cmd=history_view.load_history,
+    )
+
     bulk_view = BulkView(
-        page, storage, error_service, show_status, show_error, 
+        page,
+        storage,
+        error_service,
+        show_status,
+        show_error,
         load_history_cmd=history_view.load_history,
         get_settings=lambda: {
-            'api_key': generate_view.api_key_input.value,
-            'global_instruction': generate_view.global_instruction_input.value,
-            'target_keywords': generate_view.target_keywords_input.value,
-            'tone': generate_view.tone_dropdown.value
-        }
+            "api_key": generate_view.api_key_input.value,
+            "global_instruction": generate_view.global_instruction_input.value,
+            "target_keywords": generate_view.target_keywords_input.value,
+            "tone": generate_view.tone_dropdown.value,
+        },
     )
+
+    def toggle_theme(_):
+        page.theme_mode = (
+            ft.ThemeMode.DARK if page.theme_mode == ft.ThemeMode.LIGHT else ft.ThemeMode.LIGHT
+        )
+        page.update()
+
     page.appbar = ft.AppBar(
         leading=ft.Icon(ft.Icons.AUTO_AWESOME),
         title=ft.Text("AI Meta Description Generator"),
@@ -75,12 +94,26 @@ async def main(page: ft.Page):
         actions=[
             ft.PopupMenuButton(
                 items=[
-                    ft.PopupMenuItem(text="CSVエクスポート", icon=ft.Icons.DOWNLOAD, on_click=history_view.export_click),
+                    ft.PopupMenuItem(
+                        text="CSVエクスポート",
+                        icon=ft.Icons.DOWNLOAD,
+                        on_click=history_view.export_click,
+                    ),
                     ft.PopupMenuItem(),
-                    ft.PopupMenuItem(text="テーマ切替", on_click=lambda _: setattr(page, "theme_mode", ft.ThemeMode.DARK if page.theme_mode == ft.ThemeMode.LIGHT else ft.ThemeMode.LIGHT) or page.update()),
+                    ft.PopupMenuItem(
+                        text="テーマ切替",
+                        on_click=toggle_theme,
+                    ),
                     ft.PopupMenuItem(),
-                    ft.PopupMenuItem(text="GitHub", on_click=lambda _: page.launch_url("https://github.com/suzuryuquark/Meta-Description-Generator")),
-                    ft.PopupMenuItem(text="更新履歴", on_click=lambda _: dialogs.show_changelog_dialog()),
+                    ft.PopupMenuItem(
+                        text="GitHub",
+                        on_click=lambda _: page.launch_url(
+                            "https://github.com/suzuryuquark/Meta-Description-Generator"
+                        ),
+                    ),
+                    ft.PopupMenuItem(
+                        text="更新履歴", on_click=lambda _: dialogs.show_changelog_dialog()
+                    ),
                     ft.PopupMenuItem(text="情報", on_click=lambda _: dialogs.show_about_dialog()),
                 ]
             ),
@@ -95,7 +128,7 @@ async def main(page: ft.Page):
             ft.Tab(text="一括生成", icon=ft.Icons.BATCH_PREDICTION, content=bulk_view),
             ft.Tab(text="履歴", icon=ft.Icons.HISTORY, content=history_view),
         ],
-        expand=True
+        expand=True,
     )
 
     page.add(ft.Column([tabs, status_container], expand=True))
@@ -104,6 +137,7 @@ async def main(page: ft.Page):
     await generate_view.initialize()
     await history_view.load_history()
     page.update()
+
 
 if __name__ == "__main__":
     ft.app(target=main)
