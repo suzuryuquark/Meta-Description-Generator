@@ -1,8 +1,11 @@
 import asyncio
+import uuid
 
 import flet as ft
 
 import core_logic
+from models.generation import MetaSuggestion
+from services.gemini_service import GeminiService
 from services.storage_service import StorageService
 
 
@@ -12,6 +15,7 @@ class BulkView(ft.Container):
         page: ft.Page,
         storage: StorageService,
         error_service,
+        gemini_service: GeminiService,
         show_status,
         show_error,
         load_history_cmd,
@@ -21,6 +25,7 @@ class BulkView(ft.Container):
         self.page = page
         self.storage = storage
         self.error_service = error_service
+        self.gemini_service = gemini_service
         self.show_status = show_status
         self.show_error = show_error
         self.load_history_cmd = load_history_cmd
@@ -91,8 +96,11 @@ class BulkView(ft.Container):
 
         settings = self.get_settings()
         api_key = settings.get("api_key")
+        model_name = (settings.get("model") or "").strip()
         if not api_key:
             return await self.show_error("APIキーを入力してください")
+        if not model_name:
+            return await self.show_error("使用するGeminiモデルを指定してください")
 
         self.generate_btn.disabled = True
         self.progress_bar.visible = True
@@ -110,8 +118,9 @@ class BulkView(ft.Container):
                 # Fetch and Generate
                 text = await asyncio.to_thread(core_logic.fetch_website_content, url)
                 suggestions = await asyncio.to_thread(
-                    core_logic.generate_descriptions,
+                    self.gemini_service.generate_descriptions,
                     api_key,
+                    model_name,
                     text,
                     settings.get("global_instruction"),
                     settings.get("target_keywords"),
@@ -127,12 +136,12 @@ class BulkView(ft.Container):
                                         ft.ListTile(
                                             title=ft.Text(url, weight=ft.FontWeight.BOLD),
                                             subtitle=ft.Text(
-                                                f"パターン: {item['title']}",
+                                                f"パターン: {item.title}",
                                                 weight=ft.FontWeight.W_500,
                                             ),
                                         ),
-                                        ft.Text(f"Title: {item.get('title_tag', '')}", size=12),
-                                        ft.Text(f"Desc: {item['description']}", size=12),
+                                        ft.Text(f"Title: {item.title_tag}", size=12),
+                                        ft.Text(f"Desc: {item.description}", size=12),
                                     ]
                                 ),
                                 padding=10,
@@ -140,7 +149,7 @@ class BulkView(ft.Container):
                         )
                         self.results_column.controls.append(res_card)
 
-                    await self.save_to_history(url, suggestions)
+                    await self.save_to_history(url, suggestions, model_name)
                     success_count += 1
 
                 self.progress_bar.value = (i + 1) / len(urls)
@@ -168,7 +177,7 @@ class BulkView(ft.Container):
         await self.show_status("一括生成が完了しました")
         self.update()
 
-    async def save_to_history(self, url, suggestions):
+    async def save_to_history(self, url: str, suggestions: list[MetaSuggestion], model_name: str):
         history = await self.storage.get_history()
         import datetime
 
@@ -177,10 +186,13 @@ class BulkView(ft.Container):
             history.append(
                 {
                     "url": url,
+                    "id": uuid.uuid4().hex,
                     "timestamp": timestamp,
-                    "pattern": item["title"],
-                    "title_tag": item.get("title_tag", ""),
-                    "description": item["description"],
+                    "model": model_name,
+                    "status": "生成結果",
+                    "pattern": item.title,
+                    "title_tag": item.title_tag,
+                    "description": item.description,
                 }
             )
         await self.storage.save_history(history)

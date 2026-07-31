@@ -13,6 +13,8 @@ class ExportService:
                 [
                     "日時",
                     "URL",
+                    "使用モデル",
+                    "状態",
                     "パターン",
                     "タイトルタグ",
                     "文字数",
@@ -28,6 +30,8 @@ class ExportService:
                     [
                         entry.get("timestamp", ""),
                         entry.get("url", ""),
+                        entry.get("model", ""),
+                        entry.get("status", ""),
                         entry.get("pattern", ""),
                         title,
                         len(title),

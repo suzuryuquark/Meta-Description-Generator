@@ -14,7 +14,7 @@ class DialogManager:
             ft.AlertDialog(
                 title=ft.Text("バージョン情報"),
                 content=ft.Text(
-                    f"AI Meta Description Generator v1.3.0\n\n© {current_year} suzuryuquark"
+                    f"AI Meta Description Generator v1.4.0\n\n© {current_year} suzuryuquark"
                 ),
             )
         )

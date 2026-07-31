@@ -2,6 +2,7 @@ import flet as ft
 
 from services.error_service import ErrorService
 from services.export_service import ExportService
+from services.gemini_service import GeminiService
 from services.storage_service import StorageService
 from ui.bulk_view import BulkView
 from ui.dialogs import DialogManager
@@ -28,6 +29,7 @@ async def main(page: ft.Page):
     # Initialize Services
     storage = StorageService(page)
     export_service = ExportService()
+    gemini_service = GeminiService()
     error_service = ErrorService(page)
     dialogs = DialogManager(page)
 
@@ -61,6 +63,7 @@ async def main(page: ft.Page):
         page,
         storage,
         error_service,
+        gemini_service,
         show_status,
         show_error,
         load_history_cmd=history_view.load_history,
@@ -70,11 +73,13 @@ async def main(page: ft.Page):
         page,
         storage,
         error_service,
+        gemini_service,
         show_status,
         show_error,
         load_history_cmd=history_view.load_history,
         get_settings=lambda: {
             "api_key": generate_view.api_key_input.value,
+            "model": generate_view.model_dropdown.value,
             "global_instruction": generate_view.global_instruction_input.value,
             "target_keywords": generate_view.target_keywords_input.value,
             "tone": generate_view.tone_dropdown.value,
@@ -134,6 +139,7 @@ async def main(page: ft.Page):
     page.add(ft.Column([tabs, status_container], expand=True))
 
     # Initial Load
+    await storage.migrate_settings()
     await generate_view.initialize()
     await history_view.load_history()
     page.update()

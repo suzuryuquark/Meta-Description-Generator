@@ -1,9 +1,14 @@
 import asyncio
+import datetime
 
 import flet as ft
 
 import core_logic
 import ui_components
+from models.generation import (
+    DEFAULT_GEMINI_MODEL,
+)
+from services.gemini_service import GeminiService
 from services.storage_service import StorageService
 
 
@@ -13,6 +18,7 @@ class GenerateView(ft.Container):
         page: ft.Page,
         storage: StorageService,
         error_service,
+        gemini_service: GeminiService,
         show_status,
         show_error,
         load_history_cmd,
@@ -21,6 +27,7 @@ class GenerateView(ft.Container):
         self.page = page
         self.storage = storage
         self.error_service = error_service
+        self.gemini_service = gemini_service
         self.show_status = show_status
         self.show_error = show_error
         self.load_history_cmd = load_history_cmd
@@ -43,6 +50,28 @@ class GenerateView(ft.Container):
         )
         self.save_key_btn = ft.IconButton(
             icon=ft.Icons.SAVE, tooltip="APIキーを保存", on_click=self.save_api_key_click
+        )
+
+        self.model_dropdown = ft.Dropdown(
+            label="使用するGeminiモデル",
+            width=600,
+            editable=True,
+            enable_filter=True,
+            enable_search=True,
+            value=DEFAULT_GEMINI_MODEL,
+            options=[
+                ft.dropdown.Option(
+                    key=DEFAULT_GEMINI_MODEL,
+                    text=DEFAULT_GEMINI_MODEL,
+                )
+            ],
+            helper_text="一覧から選択するか、モデルIDを直接入力できます",
+            on_change=self.on_model_change,
+        )
+        self.refresh_models_btn = ft.IconButton(
+            icon=ft.Icons.REFRESH,
+            tooltip="利用可能なモデル一覧を更新",
+            on_click=lambda e: self.page.run_task(self.refresh_models_click, e),
         )
 
         # Templates
@@ -111,6 +140,10 @@ class GenerateView(ft.Container):
                     [self.api_key_input, self.save_key_btn], alignment=ft.MainAxisAlignment.START
                 ),
                 ft.Row(
+                    [self.model_dropdown, self.refresh_models_btn],
+                    alignment=ft.MainAxisAlignment.START,
+                ),
+                ft.Row(
                     [
                         self.template_dropdown,
                         ft.IconButton(
@@ -149,6 +182,9 @@ class GenerateView(ft.Container):
     async def initialize(self):
         # API key is preserved
         self.api_key_input.value = await self.storage.get_api_key() or ""
+        saved_model = await self.storage.get_gemini_model()
+        self.model_dropdown.value = saved_model
+        self.model_dropdown.options = [ft.dropdown.Option(key=saved_model, text=saved_model)]
 
         # Other fields are cleared on startup as requested
         self._clear_inputs(include_instruction=True)
@@ -192,7 +228,51 @@ class GenerateView(ft.Container):
 
     async def save_api_key_click(self, e):
         await self.storage.save_api_key(self.api_key_input.value)
+        await self.storage.save_gemini_model(
+            (self.model_dropdown.value or DEFAULT_GEMINI_MODEL).strip()
+        )
         await self.show_status("APIキーを保存しました")
+
+    async def on_model_change(self, e):
+        model_name = (e.control.value or "").strip()
+        if model_name:
+            await self.storage.save_gemini_model(model_name)
+
+    async def refresh_models_click(self, e):
+        api_key = (self.api_key_input.value or "").strip()
+        if not api_key:
+            return await self.show_error("モデル一覧の取得にはAPIキーが必要です")
+
+        current_model = (self.model_dropdown.value or DEFAULT_GEMINI_MODEL).strip()
+        self.refresh_models_btn.disabled = True
+        await self.show_status("利用可能なGeminiモデルを取得中...")
+        self.update()
+        try:
+            models = await asyncio.to_thread(self.gemini_service.list_models, api_key)
+            options = [
+                ft.dropdown.Option(
+                    key=model.model_id,
+                    text=model.option_label,
+                )
+                for model in models
+            ]
+            if current_model not in {model.model_id for model in models}:
+                options.insert(
+                    0,
+                    ft.dropdown.Option(
+                        key=current_model,
+                        text=f"{current_model} [現在の設定]",
+                    ),
+                )
+            self.model_dropdown.options = options
+            self.model_dropdown.value = current_model
+            await self.show_status(f"利用可能なモデルを{len(models)}件取得しました")
+        except Exception as ex:
+            if not await self.error_service.handle_exception(ex, "モデル一覧取得"):
+                await self.show_error(str(ex))
+        finally:
+            self.refresh_models_btn.disabled = False
+            self.update()
 
     async def save_template_click(self, e):
         # Overwrite current selection
@@ -295,6 +375,7 @@ class GenerateView(ft.Container):
 
     async def generate_descriptions_click(self, e):
         api_key = self.api_key_input.value
+        model_name = (self.model_dropdown.value or "").strip()
         domain = self.domain_input.value.strip().rstrip("/")
         path = self.path_input.value.strip().lstrip("/")
         url = f"{domain}/{path}"
@@ -303,9 +384,13 @@ class GenerateView(ft.Container):
         await self.storage.save_global_instruction(self.global_instruction_input.value)
         await self.storage.save_target_keywords(self.target_keywords_input.value)
         await self.storage.save_last_domain(domain)
+        if model_name:
+            await self.storage.save_gemini_model(model_name)
 
         if not api_key:
             return await self.show_error("APIキーを入力してください")
+        if not model_name:
+            return await self.show_error("使用するGeminiモデルを指定してください")
         if not domain:
             return await self.show_error("ドメインを入力してください")
 
@@ -323,21 +408,30 @@ class GenerateView(ft.Container):
             await self.show_status("AIが説明文を生成中...")
             print("Generating descriptions with Gemini...")
             suggestions = await asyncio.to_thread(
-                core_logic.generate_descriptions,
+                self.gemini_service.generate_descriptions,
                 api_key,
+                model_name,
                 self.current_website_text,
                 self.global_instruction_input.value,
                 self.target_keywords_input.value,
                 tone=self.tone_dropdown.value,
             )
 
+            cards = []
             for item in suggestions:
                 card = ui_components.create_result_card(
-                    item, domain, path, self.copy_to_clipboard, self.open_refine_dialog
+                    item,
+                    domain,
+                    path,
+                    model_name,
+                    self.copy_to_clipboard,
+                    self.open_refine_dialog,
+                    self.save_result_history_click,
                 )
                 self.results_column.controls.append(card)
+                cards.append(card)
 
-            await self.save_to_history(url, suggestions)
+            await self.save_to_history(cards)
             await self.load_history_cmd()
             await self.show_status("生成完了！")
 
@@ -348,22 +442,49 @@ class GenerateView(ft.Container):
         self.generate_btn.disabled = False
         self.update()
 
-    async def save_to_history(self, url, suggestions):
+    async def save_to_history(self, cards: list[ui_components.ResultCard]):
         history = await self.storage.get_history()
-        import datetime
-
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        for item in suggestions:
-            history.append(
-                {
-                    "url": url,
-                    "timestamp": timestamp,
-                    "pattern": item["title"],
-                    "title_tag": item.get("title_tag", ""),
-                    "description": item["description"],
-                }
-            )
+        for card in cards:
+            history.append(self._history_entry(card, timestamp, "生成結果"))
         await self.storage.save_history(history)
+
+    async def save_result_history_click(self, e):
+        card = e.control.data
+        if not isinstance(card, ui_components.ResultCard):
+            return await self.show_error("保存対象の生成結果を特定できませんでした")
+        await self.persist_result_card(card)
+        await self.load_history_cmd()
+        await self.show_status("編集内容を履歴へ反映しました")
+
+    async def persist_result_card(self, card: ui_components.ResultCard):
+        history = await self.storage.get_history()
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        updated_entry = self._history_entry(card, timestamp, "編集済み")
+        for index, entry in enumerate(history):
+            if entry.get("id") == card.history_id:
+                updated_entry["timestamp"] = entry.get("timestamp", timestamp)
+                updated_entry["updated_at"] = timestamp
+                history[index] = updated_entry
+                break
+        else:
+            history.append(updated_entry)
+        await self.storage.save_history(history)
+
+    @staticmethod
+    def _history_entry(
+        card: ui_components.ResultCard, timestamp: str, status: str
+    ) -> dict[str, str]:
+        return {
+            "id": card.history_id,
+            "url": card.url,
+            "timestamp": timestamp,
+            "model": card.model_name,
+            "status": status,
+            "pattern": card.pattern,
+            "title_tag": card.title_tag,
+            "description": card.description,
+        }
 
     async def copy_to_clipboard(self, e):
         self.page.set_clipboard(e.control.data)
@@ -371,6 +492,8 @@ class GenerateView(ft.Container):
 
     async def open_refine_dialog(self, e):
         target_card = e.control.data
+        if not isinstance(target_card, ui_components.ResultCard):
+            return await self.show_error("修正対象の生成結果を特定できませんでした")
         refine_input = ft.TextField(label="修正の指示", multiline=True, autofocus=True, filled=True)
 
         async def submit(e):
@@ -380,25 +503,22 @@ class GenerateView(ft.Container):
             await self.show_status("修正案を生成中...")
 
             try:
-                original_desc = target_card.content.content.controls[9].value
+                model_name = (self.model_dropdown.value or "").strip()
                 refined = await asyncio.to_thread(
-                    core_logic.refine_description,
+                    self.gemini_service.refine_description,
                     self.api_key_input.value,
+                    model_name,
                     self.current_website_text,
-                    original_desc,
+                    target_card.description,
                     self.global_instruction_input.value,
                     self.target_keywords_input.value,
                     refine_input.value,
                 )
 
-                # Update UI
-                target_card.content.content.controls[9].value = refined
-                count_text = target_card.content.content.controls[10].controls[0]
-                count_text.value = f"{len(refined)}文字"
-                count_text.color = ft.Colors.RED if len(refined) > 120 else ft.Colors.GREY
-                target_card.content.content.controls[10].controls[1].data = refined
-                target_card.content.content.controls[2].content.controls[2].value = refined
-
+                target_card.model_name = model_name
+                target_card.set_description(refined)
+                await self.persist_result_card(target_card)
+                await self.load_history_cmd()
                 orig_color = target_card.color
                 target_card.color = ft.Colors.GREEN_50
                 target_card.update()

@@ -1,7 +1,11 @@
 import flet as ft
 
+from models.generation import DEFAULT_GEMINI_MODEL
+
 
 class StorageService:
+    SETTINGS_SCHEMA_VERSION = 2
+
     def __init__(self, page: ft.Page):
         self.page = page
 
@@ -14,6 +18,22 @@ class StorageService:
 
     async def has_api_key(self):
         return await self.page.client_storage.contains_key_async("gemini_api_key")
+
+    # --- Gemini Model ---
+    async def get_gemini_model(self):
+        return await self.page.client_storage.get_async("gemini_model") or DEFAULT_GEMINI_MODEL
+
+    async def save_gemini_model(self, model_name: str):
+        await self.page.client_storage.set_async("gemini_model", model_name)
+
+    async def migrate_settings(self):
+        current_version = await self.page.client_storage.get_async("settings_schema_version") or 1
+        if current_version < 2:
+            if not await self.page.client_storage.get_async("gemini_model"):
+                await self.save_gemini_model(DEFAULT_GEMINI_MODEL)
+            await self.page.client_storage.set_async(
+                "settings_schema_version", self.SETTINGS_SCHEMA_VERSION
+            )
 
     # --- Instructions & Keywords ---
     async def get_global_instruction(self):
