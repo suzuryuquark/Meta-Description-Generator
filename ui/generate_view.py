@@ -3,13 +3,13 @@ import datetime
 
 import flet as ft
 
-import core_logic
 import ui_components
 from models.generation import (
     DEFAULT_GEMINI_MODEL,
 )
 from services.gemini_service import GeminiService
 from services.storage_service import StorageService
+from services.website_fetch_service import WebsiteFetchService
 
 
 class GenerateView(ft.Container):
@@ -19,6 +19,7 @@ class GenerateView(ft.Container):
         storage: StorageService,
         error_service,
         gemini_service: GeminiService,
+        website_fetch_service: WebsiteFetchService,
         show_status,
         show_error,
         load_history_cmd,
@@ -28,6 +29,7 @@ class GenerateView(ft.Container):
         self.storage = storage
         self.error_service = error_service
         self.gemini_service = gemini_service
+        self.website_fetch_service = website_fetch_service
         self.show_status = show_status
         self.show_error = show_error
         self.load_history_cmd = load_history_cmd
@@ -400,13 +402,11 @@ class GenerateView(ft.Container):
         self.update()
 
         try:
-            print(f"Fetching website content: {url}")
             self.current_website_text = await asyncio.to_thread(
-                core_logic.fetch_website_content, url
+                self.website_fetch_service.fetch_text, url
             )
 
             await self.show_status("AIが説明文を生成中...")
-            print("Generating descriptions with Gemini...")
             suggestions = await asyncio.to_thread(
                 self.gemini_service.generate_descriptions,
                 api_key,

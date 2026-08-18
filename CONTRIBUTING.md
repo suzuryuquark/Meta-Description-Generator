@@ -240,6 +240,8 @@ PR説明には次を含めます。
 - README、CHANGELOG、実装計画を必要に応じて更新している
 - Windows上のFlet起動を確認している
 - リリース対象ではWindows向けパッケージのスモークテストを完了している
+- バージョン実装の完了後、リリース版の
+  `dist/MetaDescriptionGenerator.exe` を生成している
 
 ## 13. バージョニングとリリース
 
@@ -258,3 +260,24 @@ PR説明には次を含めます。
 5. クリーン環境での依存関係インストール
 6. Windows向けパッケージ作成
 7. パッケージ版の起動、生成、保存、終了
+
+### Windowsリリース実行ファイルの生成
+
+全機能の実装と品質ゲートが完了してから、プロジェクト直下で次を実行します。
+バージョン番号は対象リリースに合わせます。
+
+```powershell
+python -c "from flet.cli import main; main()" pack `
+  -n MetaDescriptionGenerator `
+  -i icon.ico `
+  --product-name "Meta Description Generator" `
+  --file-description "AI Meta Description Generator" `
+  --product-version 1.5.0 `
+  --file-version 1.5.0.0 `
+  -y `
+  main.py
+```
+
+成果物は `dist/MetaDescriptionGenerator.exe` とします。生成後はパッケージ版で起動、
+設定保存、通常生成、正常終了を確認します。`dist/` と生成されたspecファイルは
+Gitへコミットしません。

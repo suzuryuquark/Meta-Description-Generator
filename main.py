@@ -4,6 +4,7 @@ from services.error_service import ErrorService
 from services.export_service import ExportService
 from services.gemini_service import GeminiService
 from services.storage_service import StorageService
+from services.website_fetch_service import WebsiteFetchService
 from ui.bulk_view import BulkView
 from ui.dialogs import DialogManager
 from ui.generate_view import GenerateView
@@ -30,6 +31,7 @@ async def main(page: ft.Page):
     storage = StorageService(page)
     export_service = ExportService()
     gemini_service = GeminiService()
+    website_fetch_service = WebsiteFetchService()
     error_service = ErrorService(page)
     dialogs = DialogManager(page)
 
@@ -64,6 +66,7 @@ async def main(page: ft.Page):
         storage,
         error_service,
         gemini_service,
+        website_fetch_service,
         show_status,
         show_error,
         load_history_cmd=history_view.load_history,
@@ -74,6 +77,7 @@ async def main(page: ft.Page):
         storage,
         error_service,
         gemini_service,
+        website_fetch_service,
         show_status,
         show_error,
         load_history_cmd=history_view.load_history,

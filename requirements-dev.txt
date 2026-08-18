@@ -2,6 +2,7 @@
 
 black>=25.1,<27
 mypy>=1.15,<2
+pyinstaller>=6.16,<7
 pytest>=8.3,<10
 ruff>=0.11,<1
 types-requests>=2.32,<3
