@@ -264,20 +264,19 @@ PR説明には次を含めます。
 ### Windowsリリース実行ファイルの生成
 
 全機能の実装と品質ゲートが完了してから、プロジェクト直下で次を実行します。
-バージョン番号は対象リリースに合わせます。
+バージョン番号は対象リリースに合わせます。リリース専用環境を作り直すことで、
+開発ツールがexeへ混入することを防ぎます。
 
 ```powershell
-python -c "from flet.cli import main; main()" pack `
-  -n MetaDescriptionGenerator `
-  -i icon.ico `
-  --product-name "Meta Description Generator" `
-  --file-description "AI Meta Description Generator" `
-  --product-version 1.5.0 `
-  --file-version 1.5.0.0 `
-  -y `
-  main.py
+.\scripts\build_release.ps1 -Version 1.5.1 -RecreateEnvironment
 ```
 
+依存関係は `requirements-build.lock` で固定します。既定の拡張除外プロファイルは、
+アプリ実行時に不要な `setuptools`、`rich`、`pygments` などを収録しません。
+スクリプトは成果物が90,000,000 bytes以下であること、除外対象が実際に未収録であること、
+exeのバージョン情報が一致することを検証します。問題の切り分けには
+`-OptimizationProfile Conservative` を指定できます。
+
 成果物は `dist/MetaDescriptionGenerator.exe` とします。生成後はパッケージ版で起動、
-設定保存、通常生成、正常終了を確認します。`dist/` と生成されたspecファイルは
-Gitへコミットしません。
+設定保存、通常生成、正常終了を確認します。容量ゲートは機能テストの代わりにはなりません。
+`dist/`、`.venv-build/`、生成されたspecファイルはGitへコミットしません。

@@ -73,6 +73,18 @@ GitHub の [Releases](https://github.com/suzuryuquark/Meta-Description-Generator
 *   **スクレイピング**: BeautifulSoup4, Requests
 *   **パッケージング**: PyInstaller
 
+## 📦 Windowsリリースビルド
+
+リリース用exeは、開発環境の不要パッケージを混入させない専用環境で生成します。
+
+```powershell
+.\scripts\build_release.ps1 -Version 1.5.1 -RecreateEnvironment
+```
+
+スクリプトは固定した依存関係を `.venv-build/` へ導入し、
+`dist/MetaDescriptionGenerator.exe` を生成します。あわせて、90,000,000 bytes以下であること、
+不要モジュールが収録されていないこと、製品・ファイルバージョンが一致することを検証します。
+
 ## 📂 プロジェクト構成
 
 *   `main.py`: アプリケーションのエントリーポイント、依存性注入
@@ -91,3 +103,6 @@ GitHub の [Releases](https://github.com/suzuryuquark/Meta-Description-Generator
     *   `dialogs.py`: 共通ダイアログコンポーネント
 *   `ui_components.py`: 汎用的なUIパーツ（結果カード、プレビュー等）
 *   `requirements.txt`: 依存ライブラリ一覧
+*   `requirements-build.txt` / `requirements-build.lock`: Windowsリリースビルド用の固定依存関係
+*   `scripts/build_release.ps1`: exe生成とリリース検証
+*   `scripts/analyze_package.py`: exeの容量と収録モジュールの検査

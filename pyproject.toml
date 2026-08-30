@@ -7,6 +7,7 @@ extend-exclude = '''
   | dist
   | \.git
   | \.venv
+  | \.venv-build
   | venv
   | __pycache__
 )/
@@ -18,6 +19,7 @@ target-version = "py311"
 exclude = [
     ".git",
     ".venv",
+    ".venv-build",
     "venv",
     "__pycache__",
     "build",
@@ -42,6 +44,7 @@ ignore = [
 [tool.ruff.lint.isort]
 known-first-party = [
     "core_logic",
+    "scripts",
     "services",
     "ui",
     "ui_components",
@@ -69,6 +72,7 @@ exclude = [
     "^build/",
     "^dist/",
     "^\\.venv/",
+    "^\\.venv-build/",
     "^venv/",
 ]
 check_untyped_defs = true

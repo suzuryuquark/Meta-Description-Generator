@@ -1,0 +1,6 @@
+-c requirements-build.lock
+-r requirements.txt
+
+# Windows release packaging toolchain. Keep these pinned for reproducible artifacts.
+flet[cli,desktop]==0.28.3
+pyinstaller==6.16.0
