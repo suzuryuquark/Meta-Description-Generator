@@ -87,6 +87,7 @@ async def main(page: ft.Page):
             "global_instruction": generate_view.global_instruction_input.value,
             "target_keywords": generate_view.target_keywords_input.value,
             "tone": generate_view.tone_dropdown.value,
+            "output_language": generate_view.output_language_dropdown.value,
         },
     )
 

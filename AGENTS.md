@@ -113,9 +113,11 @@ python -m mypy .
   `dist/MetaDescriptionGenerator.exe` を生成する。
 - `scripts/build_release.ps1` とリリース専用の `.venv-build/` を使用し、
   容量、除外モジュール、バージョン情報の自動検証を通す。
+- Windowsリリースでは管理対象の `packaging/windows_release.spec` を使用する。
+  ルート側のFlet重複は正規配置とのサイズとSHA-256が一致する場合だけ除外する。
 - exeの製品バージョン、ファイルバージョン、アプリ内表示、CHANGELOGを一致させる。
 - 生成したexeで起動、設定保存、通常生成、正常終了のスモークテストを行う。
-- `dist/` と生成されたspecファイルはGitへコミットしない。
+- `dist/` と自動生成されたspecファイルはGitへコミットしない。
 - 実装途中の確認用ビルドを、リリース版として扱わない。
 
 ## 8. 完了時の報告

@@ -4,7 +4,7 @@ import uuid
 import flet as ft
 
 from models.bulk import BulkItemState, BulkItemStatus
-from models.generation import MetaSuggestion
+from models.generation import DEFAULT_OUTPUT_LANGUAGE, MetaSuggestion
 from services.gemini_service import GeminiService
 from services.rate_limiter import AsyncRateLimiter
 from services.storage_service import StorageService
@@ -203,6 +203,9 @@ class BulkView(ft.Container):
                         settings.get("global_instruction"),
                         settings.get("target_keywords"),
                         tone=settings.get("tone"),
+                        output_language=(
+                            settings.get("output_language") or DEFAULT_OUTPUT_LANGUAGE
+                        ),
                     )
 
                     if self._is_cancel_requested():

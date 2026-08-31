@@ -98,12 +98,17 @@ def test_generate_descriptions_passes_selected_model_and_schema():
         global_instruction="指示",
         target_keywords="キーワード",
         tone="SEO重視",
+        output_language="英語",
     )
 
     assert len(result) == 3
     assert fake_models.generate_calls[0]["model"] == "gemini-test"
     config = fake_models.generate_calls[0]["config"]
     assert config.response_schema is GenerationSuggestions
+    prompt = fake_models.generate_calls[0]["contents"]
+    assert "タイトルタグとMeta Descriptionは必ず英語で出力すること" in prompt
+    assert "<global_instruction>\n指示\n</global_instruction>" in prompt
+    assert "日本語で出力すること" not in prompt
     assert factory.api_keys == ["dummy-api-key"]
     assert client.closed is True
 
@@ -177,11 +182,31 @@ def test_refine_description_passes_model_and_returns_validated_text():
         "",
         "",
         "柔らかく",
+        "英語",
     )
 
     assert result == expected
     assert fake_models.generate_calls[0]["model"] == "gemini-refine"
+    prompt = fake_models.generate_calls[0]["contents"]
+    assert "descriptionは必ず英語で出力すること" in prompt
+    assert "日本語で出力すること" not in prompt
     assert client.closed is True
+
+
+def test_generate_descriptions_rejects_unsupported_output_language():
+    service = GeminiService(
+        client_factory=FakeClientFactory(FakeClient(FakeModels(FakeResponse())))
+    )
+
+    with pytest.raises(GeminiServiceError, match="対応していない出力言語"):
+        service.generate_descriptions(
+            "dummy-api-key",
+            "gemini-test",
+            "本文",
+            "",
+            "",
+            output_language="フランス語",
+        )
 
 
 def test_list_models_filters_generate_content_and_normalizes_names():

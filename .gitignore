@@ -62,5 +62,6 @@ venv.bak/
 
 # Project specific
 *.spec
+!packaging/windows_release.spec
 seo_ai_icon_*.png
 create_shortcut.ps1

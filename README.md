@@ -9,7 +9,7 @@ Google検索結果のプレビュー（SERP Preview）機能により、実際�
 *   **一括生成 (Bulk Generation)**: [NEW] 複数のURL（最大50件）を一括で入力し、まとめてメタデータを生成。CSVエクスポートと組み合わせることで大規模サイトの管理が容易になります。
 *   **安全なWebページ取得**: HTTP/HTTPSのみを対象に、ローカル・プライベートアドレス、危険なリダイレクト、大容量レスポンス、HTML以外の応答を取得前または処理前に拒否します。
 *   **一括処理の制御**: URLごとの進行状態を表示し、処理のキャンセルと失敗URLだけの再実行に対応します。成功結果はURLごとに即時保存されます。
-*   **プロンプトテンプレート管理**: [NEW] 「ブログ用」「ECサイト用」など、よく使う指示文をテンプレートとして保存し、瞬時に切り替え可能。
+*   **プロンプトテンプレート管理**: 「ブログ用」「ECサイト用」など、よく使う指示文・キーワード・出力言語などをテンプレートとして保存し、瞬時に切り替え可能。
 *   **Geminiモデル選択**: 利用可能な生成モデルをAPIから取得して選択できるほか、モデルIDを直接指定できます。
 *   **AI自動生成**: 選択したGoogle Geminiモデルを使用し、Webサイトのコンテンツを解析して最適なタイトルと説明文を3パターン提案します。
 *   **タイトルタグ生成**: ディスクリプションだけでなく、SEOに重要なタイトルタグ（30文字前後）も同時に生成します。
@@ -61,6 +61,7 @@ GitHub の [Releases](https://github.com/suzuryuquark/Meta-Description-Generator
     *   **プロンプトテンプレート**: 以前保存した指示文があれば選択します。
     *   **サイト共通の指示**: ターゲット層やトーン＆マナーなど、常に適用したい指示を入力します。
     *   **ターゲットキーワード**: 含めたいキーワードをカンマ区切りで入力します。
+    *   **出力言語**: 日本語または英語を選択します。選択内容はテンプレートに保存され、通常生成・一括生成・修正生成に適用されます。
 5.  **生成**: 通常生成では「生成する」、一括生成では「一括生成を開始」をクリックします。一括生成は途中でキャンセルでき、完了後に失敗URLだけを再実行できます。
 6.  **確認・編集（通常生成のみ）**: 3つの提案が表示されます。プレビューを確認しながら、必要に応じて手動修正や再生成（修正依頼）を行います。手動編集後は「編集内容を履歴へ反映」を押します。
 
@@ -78,12 +79,14 @@ GitHub の [Releases](https://github.com/suzuryuquark/Meta-Description-Generator
 リリース用exeは、開発環境の不要パッケージを混入させない専用環境で生成します。
 
 ```powershell
-.\scripts\build_release.ps1 -Version 1.5.1 -RecreateEnvironment
+.\scripts\build_release.ps1 -Version 1.5.2 -RecreateEnvironment
 ```
 
 スクリプトは固定した依存関係を `.venv-build/` へ導入し、
-`dist/MetaDescriptionGenerator.exe` を生成します。あわせて、90,000,000 bytes以下であること、
-不要モジュールが収録されていないこと、製品・ファイルバージョンが一致することを検証します。
+`dist/MetaDescriptionGenerator.exe` を生成します。Fletランタイムの正規配置を維持したまま、
+ハッシュが一致するルート側の重複だけを除外します。あわせて、62,000,000 bytes以下であること、
+Flet固有重複と不要モジュールが収録されていないこと、製品・ファイルバージョンが
+一致することを検証します。
 
 ## 📂 プロジェクト構成
 
@@ -106,3 +109,4 @@ GitHub の [Releases](https://github.com/suzuryuquark/Meta-Description-Generator
 *   `requirements-build.txt` / `requirements-build.lock`: Windowsリリースビルド用の固定依存関係
 *   `scripts/build_release.ps1`: exe生成とリリース検証
 *   `scripts/analyze_package.py`: exeの容量と収録モジュールの検査
+*   `packaging/windows_release.spec`: Windows版の管理対象PyInstallerビルド定義

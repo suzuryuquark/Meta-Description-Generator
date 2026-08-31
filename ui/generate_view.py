@@ -6,6 +6,8 @@ import flet as ft
 import ui_components
 from models.generation import (
     DEFAULT_GEMINI_MODEL,
+    DEFAULT_OUTPUT_LANGUAGE,
+    OUTPUT_LANGUAGES,
 )
 from services.gemini_service import GeminiService
 from services.storage_service import StorageService
@@ -97,6 +99,12 @@ class GenerateView(ft.Container):
             border=ft.InputBorder.OUTLINE,
             filled=True,
         )
+        self.output_language_dropdown = ft.Dropdown(
+            label="出力言語",
+            width=800,
+            options=[ft.dropdown.Option(language) for language in OUTPUT_LANGUAGES],
+            value=DEFAULT_OUTPUT_LANGUAGE,
+        )
 
         # URL Inputs
         self.domain_input = ft.TextField(
@@ -168,6 +176,7 @@ class GenerateView(ft.Container):
                 ),
                 self.global_instruction_input,
                 self.target_keywords_input,
+                self.output_language_dropdown,
                 ft.Row(
                     [self.domain_input, ft.Text("/", size=20), self.path_input],
                     vertical_alignment=ft.CrossAxisAlignment.CENTER,
@@ -195,13 +204,15 @@ class GenerateView(ft.Container):
         self.template_dropdown.value = None  # Ensure unselected on start
         self.update()
 
-    def _clear_inputs(self, include_instruction=True):
+    def _clear_inputs(self, include_instruction=True, include_output_language=True):
         if include_instruction:
             self.global_instruction_input.value = ""
         self.target_keywords_input.value = ""
         self.domain_input.value = ""
         self.path_input.value = ""
         self.tone_dropdown.value = "SEO重視 (デフォルト)"
+        if include_output_language:
+            self.output_language_dropdown.value = DEFAULT_OUTPUT_LANGUAGE
         self.results_column.controls.clear()
 
     async def load_templates(self):
@@ -223,9 +234,14 @@ class GenerateView(ft.Container):
                 self.domain_input.value = data.get("domain", "")
                 self.path_input.value = data.get("path", "")
                 self.tone_dropdown.value = data.get("tone", "SEO重視 (デフォルト)")
+                language = data.get("output_language", DEFAULT_OUTPUT_LANGUAGE)
+                self.output_language_dropdown.value = (
+                    language if language in OUTPUT_LANGUAGES else DEFAULT_OUTPUT_LANGUAGE
+                )
             else:
                 # Legacy support for string-only templates
                 self.global_instruction_input.value = data
+                self.output_language_dropdown.value = DEFAULT_OUTPUT_LANGUAGE
             self.update()
 
     async def save_api_key_click(self, e):
@@ -291,6 +307,7 @@ class GenerateView(ft.Container):
             "domain": self.domain_input.value,
             "path": self.path_input.value,
             "tone": self.tone_dropdown.value,
+            "output_language": self.output_language_dropdown.value,
         }
         await self.storage.save_templates(templates)
         await self.show_status(f"テンプレート '{name}' を更新しました")
@@ -314,6 +331,7 @@ class GenerateView(ft.Container):
                 "domain": self.domain_input.value,
                 "path": self.path_input.value,
                 "tone": self.tone_dropdown.value,
+                "output_language": self.output_language_dropdown.value,
             }
             await self.storage.save_templates(templates)
             self.page.close(dialog)
@@ -323,7 +341,10 @@ class GenerateView(ft.Container):
             self.template_dropdown.value = name
 
             # Clear other fields (except the instruction that was just saved)
-            self._clear_inputs(include_instruction=False)
+            self._clear_inputs(
+                include_instruction=False,
+                include_output_language=False,
+            )
 
             self.update()
             await self.show_status(f"新規テンプレート '{name}' を作成しました")
@@ -415,6 +436,7 @@ class GenerateView(ft.Container):
                 self.global_instruction_input.value,
                 self.target_keywords_input.value,
                 tone=self.tone_dropdown.value,
+                output_language=self.output_language_dropdown.value,
             )
 
             cards = []
@@ -513,6 +535,7 @@ class GenerateView(ft.Container):
                     self.global_instruction_input.value,
                     self.target_keywords_input.value,
                     refine_input.value,
+                    self.output_language_dropdown.value,
                 )
 
                 target_card.model_name = model_name

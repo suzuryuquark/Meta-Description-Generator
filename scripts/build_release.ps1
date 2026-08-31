@@ -4,13 +4,14 @@ param(
     [ValidatePattern('^\d+\.\d+\.\d+$')]
     [string]$Version,
 
-    [ValidateSet('Baseline', 'Conservative', 'Extended')]
-    [string]$OptimizationProfile = 'Extended',
+    [ValidateSet('Baseline', 'Conservative', 'Extended', 'Deduplicated')]
+    [string]$OptimizationProfile = 'Deduplicated',
 
     [string]$BuildPython = 'python',
     [string]$BuildEnvironment = '.venv-build',
     [string]$DistPath = 'dist',
-    [long]$MaximumBytes = 90000000,
+    [long]$BaselineBytes = 86995084,
+    [long]$MaximumBytes = 62000000,
     [switch]$RecreateEnvironment,
     [switch]$SkipDependencyInstall
 )
@@ -48,6 +49,7 @@ $excludedModules = switch ($OptimizationProfile) {
     'Baseline' { @() }
     'Conservative' { @('mypy', 'lxml', 'PIL') }
     'Extended' { @('mypy', 'lxml', 'PIL', 'setuptools', 'pygments', 'rich', 'markdown_it', 'click') }
+    'Deduplicated' { @('mypy', 'lxml', 'PIL', 'setuptools', 'pygments', 'rich', 'markdown_it', 'click') }
 }
 
 $iconPath = (Resolve-Path (Join-Path $projectRoot 'icon.ico')).Path
@@ -68,20 +70,55 @@ foreach ($module in $excludedModules) {
     $packArguments += "--pyinstaller-build-args=--exclude-module=$module"
 }
 
-& $buildEnvironmentPython @packArguments
+if ($OptimizationProfile -eq 'Deduplicated') {
+    $specPath = Join-Path $projectRoot 'packaging\windows_release.spec'
+    $pyinstallerArguments = @(
+        '-m', 'PyInstaller',
+        '--noconfirm',
+        '--clean',
+        '--distpath', $DistPath,
+        '--workpath', 'build\release',
+        $specPath,
+        '--',
+        '--version', $Version,
+        '--name', 'MetaDescriptionGenerator',
+        '--icon', $iconPath
+    )
+    & $buildEnvironmentPython @pyinstallerArguments
+} else {
+    & $buildEnvironmentPython @packArguments
+}
 if ($LASTEXITCODE -ne 0) {
-    throw 'Flet release packaging failed.'
+    throw 'Windows release packaging failed.'
 }
 
 $executablePath = Join-Path ([IO.Path]::GetFullPath((Join-Path $projectRoot $DistPath))) 'MetaDescriptionGenerator.exe'
 $analysisArguments = @(
     'scripts/analyze_package.py',
     $executablePath,
-    '--baseline', '102664931',
+    '--baseline', $BaselineBytes,
     '--maximum', $MaximumBytes
 )
 foreach ($module in $excludedModules) {
     $analysisArguments += @('--forbid', $module)
+}
+if ($OptimizationProfile -eq 'Deduplicated') {
+    $analysisArguments += @(
+        '--maximum-duplicate-bytes', '1000000',
+        '--forbid-root-duplicate', 'libmpv-2.dll',
+        '--forbid-root-duplicate', 'flutter_windows.dll',
+        '--forbid-root-duplicate', 'libGLESv2.dll',
+        '--forbid-root-duplicate', 'libEGL.dll',
+        '--forbid-root-duplicate', 'rive_common_plugin.dll',
+        '--forbid-root-duplicate', 'ucrtbased.dll',
+        '--forbid-root-duplicate-suffix', '_plugin.dll',
+        '--require-entry', 'flet_desktop\app\flet\flet.exe',
+        '--require-entry', 'flet_desktop\app\flet\libmpv-2.dll',
+        '--require-entry', 'flet_desktop\app\flet\flutter_windows.dll',
+        '--require-entry', 'flet_desktop\app\flet\libGLESv2.dll',
+        '--require-entry', 'flet_desktop\app\flet\libEGL.dll',
+        '--require-entry', 'flet_desktop\app\flet\rive_common_plugin.dll'
+    )
 }
 & $buildEnvironmentPython @analysisArguments
 if ($LASTEXITCODE -ne 0) {

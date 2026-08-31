@@ -268,15 +268,20 @@ PR説明には次を含めます。
 開発ツールがexeへ混入することを防ぎます。
 
 ```powershell
-.\scripts\build_release.ps1 -Version 1.5.1 -RecreateEnvironment
+.\scripts\build_release.ps1 -Version 1.5.2 -RecreateEnvironment
 ```
 
-依存関係は `requirements-build.lock` で固定します。既定の拡張除外プロファイルは、
-アプリ実行時に不要な `setuptools`、`rich`、`pygments` などを収録しません。
-スクリプトは成果物が90,000,000 bytes以下であること、除外対象が実際に未収録であること、
-exeのバージョン情報が一致することを検証します。問題の切り分けには
-`-OptimizationProfile Conservative` を指定できます。
+依存関係は `requirements-build.lock` で固定します。既定の`Deduplicated`プロファイルは、
+アプリ実行時に不要な `setuptools`、`rich`、`pygments` などを収録せず、さらに
+Fletランタイムと内容が一致するFlet固有のルートDLLを除外します。除外は
+`packaging/windows_release.spec`のAnalysis段階で行い、完成したexeを直接加工しません。
+
+スクリプトは成果物が62,000,000 bytes以下であること、Flet固有重複と除外対象が
+未収録であること、正規配置側が維持されていること、exeのバージョン情報が一致することを
+検証します。問題の切り分けには`-OptimizationProfile Extended -MaximumBytes 90000000`
+を指定し、v1.5.1相当の方式へ戻せます。
 
 成果物は `dist/MetaDescriptionGenerator.exe` とします。生成後はパッケージ版で起動、
 設定保存、通常生成、正常終了を確認します。容量ゲートは機能テストの代わりにはなりません。
-`dist/`、`.venv-build/`、生成されたspecファイルはGitへコミットしません。
+`dist/`、`.venv-build/`、自動生成されたspecファイルはGitへコミットしません。
+`packaging/windows_release.spec`はレビュー対象のソースファイルとしてコミットします。
