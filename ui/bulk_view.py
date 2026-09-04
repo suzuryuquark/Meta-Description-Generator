@@ -18,6 +18,7 @@ STATUS_COLORS = {
     BulkItemStatus.GENERATING: ft.Colors.DEEP_PURPLE,
     BulkItemStatus.SUCCESS: ft.Colors.GREEN,
     BulkItemStatus.FAILED: ft.Colors.RED,
+    BulkItemStatus.NOT_RUN: ft.Colors.GREY,
     BulkItemStatus.CANCELLED: ft.Colors.ORANGE,
 }
 
@@ -27,6 +28,7 @@ STATUS_ICONS = {
     BulkItemStatus.GENERATING: ft.Icons.AUTO_AWESOME,
     BulkItemStatus.SUCCESS: ft.Icons.CHECK_CIRCLE,
     BulkItemStatus.FAILED: ft.Icons.ERROR,
+    BulkItemStatus.NOT_RUN: ft.Icons.SCHEDULE,
     BulkItemStatus.CANCELLED: ft.Icons.CANCEL,
 }
 
@@ -60,7 +62,7 @@ class BulkView(ft.Container):
         self.expand = True
         self.items: dict[str, BulkItemState] = {}
         self.item_status_controls: dict[str, tuple[ft.Icon, ft.Text, ft.Text]] = {}
-        self.failed_urls: list[str] = []
+        self.retryable_urls: list[str] = []
         self._cancel_requested = False
         self._is_running = False
 
@@ -92,7 +94,7 @@ class BulkView(ft.Container):
             on_click=self.cancel_bulk_click,
         )
         self.retry_failed_btn = ft.OutlinedButton(
-            text="失敗URLだけ再実行",
+            text="失敗・未実行URLを再実行",
             icon=ft.Icons.REFRESH,
             disabled=True,
             on_click=lambda e: self.page.run_task(self.retry_failed_click, e),
@@ -142,9 +144,9 @@ class BulkView(ft.Container):
         await self._run_urls(urls, skipped_count=duplicate_count)
 
     async def retry_failed_click(self, _event) -> None:
-        if self._is_running or not self.failed_urls:
+        if self._is_running or not self.retryable_urls:
             return
-        await self._run_urls(list(self.failed_urls), skipped_count=0)
+        await self._run_urls(list(self.retryable_urls), skipped_count=0)
 
     def cancel_bulk_click(self, _event) -> None:
         if self._is_running:
@@ -170,6 +172,7 @@ class BulkView(ft.Container):
         success_count = 0
         failed_count = 0
         cancelled_count = 0
+        not_run_count = 0
 
         try:
             for index, url in enumerate(urls):
@@ -222,7 +225,7 @@ class BulkView(ft.Container):
                     success_count += 1
                 except Exception as exc:
                     failed_count += 1
-                    self.failed_urls.append(url)
+                    self.retryable_urls.append(url)
                     message = self._safe_error_message(exc)
                     self._set_item_status(url, BulkItemStatus.FAILED, message)
                     if not isinstance(exc, WebsiteFetchError):
@@ -230,7 +233,9 @@ class BulkView(ft.Container):
                             exc, f"一括生成 ({url})"
                         )
                         if is_critical:
-                            cancelled_count += self._cancel_remaining(urls[index + 1 :])
+                            remaining_urls = urls[index + 1 :]
+                            not_run_count += self._mark_not_run(remaining_urls)
+                            self.retryable_urls.extend(remaining_urls)
                             break
                 finally:
                     self.progress_bar.value = (index + 1) / len(urls)
@@ -239,12 +244,18 @@ class BulkView(ft.Container):
             try:
                 await self.load_history_cmd()
             finally:
-                self._finish_job(success_count, failed_count, skipped_count, cancelled_count)
+                self._finish_job(
+                    success_count,
+                    failed_count,
+                    skipped_count,
+                    cancelled_count,
+                    not_run_count,
+                )
 
     def _prepare_job(self, urls: list[str]) -> None:
         self._is_running = True
         self._cancel_requested = False
-        self.failed_urls = []
+        self.retryable_urls = []
         self.items = {url: BulkItemState(url) for url in urls}
         self.item_status_controls.clear()
         self.item_status_column.controls.clear()
@@ -266,22 +277,33 @@ class BulkView(ft.Container):
         failed_count: int,
         skipped_count: int,
         cancelled_count: int,
+        not_run_count: int,
     ) -> None:
         self._is_running = False
         self.generate_btn.disabled = False
         self.cancel_btn.disabled = True
-        self.retry_failed_btn.disabled = not self.failed_urls
+        self.retry_failed_btn.disabled = not self.retryable_urls
         self.urls_input.disabled = False
         self.progress_bar.visible = False
         self.status_text.value = (
             f"完了: 成功 {success_count}件 / 失敗 {failed_count}件 / "
-            f"スキップ {skipped_count}件 / キャンセル {cancelled_count}件"
+            f"未実行 {not_run_count}件 / スキップ {skipped_count}件 / "
+            f"キャンセル {cancelled_count}件"
         )
         self.update()
 
     def _cancel_remaining(self, urls: list[str]) -> int:
         for url in urls:
             self._set_item_status(url, BulkItemStatus.CANCELLED)
+        return len(urls)
+
+    def _mark_not_run(self, urls: list[str]) -> int:
+        for url in urls:
+            self._set_item_status(
+                url,
+                BulkItemStatus.NOT_RUN,
+                "重大エラーのため未実行",
+            )
         return len(urls)
 
     def _is_cancel_requested(self) -> bool:

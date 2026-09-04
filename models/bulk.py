@@ -8,6 +8,7 @@ class BulkItemStatus(StrEnum):
     GENERATING = "生成中"
     SUCCESS = "成功"
     FAILED = "失敗"
+    NOT_RUN = "未実行"
     CANCELLED = "キャンセル"
 
 
