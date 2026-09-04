@@ -11,6 +11,11 @@ from ui.generate_view import GenerateView
 from ui.history_view import HistoryView
 
 
+def close_app(page: ft.Page) -> None:
+    """Close the application window from an explicit user action."""
+    page.window.close()
+
+
 async def main(page: ft.Page):
     page.title = "AI Meta Description Generator"
     page.theme_mode = ft.ThemeMode.LIGHT
@@ -125,6 +130,12 @@ async def main(page: ft.Page):
                         text="更新履歴", on_click=lambda _: dialogs.show_changelog_dialog()
                     ),
                     ft.PopupMenuItem(text="情報", on_click=lambda _: dialogs.show_about_dialog()),
+                    ft.PopupMenuItem(),
+                    ft.PopupMenuItem(
+                        text="終了",
+                        icon=ft.Icons.EXIT_TO_APP,
+                        on_click=lambda _: close_app(page),
+                    ),
                 ]
             ),
         ],
